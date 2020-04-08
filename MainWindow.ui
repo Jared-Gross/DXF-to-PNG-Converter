@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>578</width>
-    <height>339</height>
+    <width>528</width>
+    <height>235</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -16,8 +19,16 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="font">
+   <font>
+    <pointsize>12</pointsize>
+   </font>
+  </property>
   <property name="windowTitle">
    <string>MainWindow</string>
+  </property>
+  <property name="tabShape">
+   <enum>QTabWidget::Rounded</enum>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
@@ -32,9 +43,15 @@
      <height>16777215</height>
     </size>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_3">
+    <property name="sizeConstraint">
+     <enum>QLayout::SetMaximumSize</enum>
+    </property>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMaximumSize</enum>
+      </property>
       <item>
        <widget class="QScrollArea" name="scrollArea">
         <property name="widgetResizable">
@@ -45,30 +62,48 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>513</width>
-           <height>245</height>
+           <width>506</width>
+           <height>153</height>
           </rect>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <layout class="QGridLayout" name="gridLayoutItems"/>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <layout class="QGridLayout" name="gridLayoutItems" rowstretch="0" columnstretch="3,0,0,2">
+            <item row="0" column="3">
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Thumbnail:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>Quantity:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Name:</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
        </widget>
       </item>
-      <item>
-       <layout class="QGridLayout" name="gridLayout">
-        <item row="0" column="0">
-         <widget class="QPushButton" name="btnAdd">
-          <property name="text">
-           <string>Add</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
      </layout>
+    </item>
+    <item>
+     <widget class="QPushButton" name="btnAdd">
+      <property name="text">
+       <string>Add</string>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -77,12 +112,34 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>578</width>
-     <height>21</height>
+     <width>528</width>
+     <height>27</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionAbout"/>
+    <addaction name="actionPrint"/>
+   </widget>
+   <addaction name="menuFile"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionExport">
+   <property name="text">
+    <string>Export</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="actionPrint">
+   <property name="text">
+    <string>&amp;Print</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
