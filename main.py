@@ -17,6 +17,124 @@ Data_JSON_Contents = []
 file_names = []
 image_locations = []
 quantities = []
+class ConvertThread(QThread):
+    
+    data_downloaded = pyqtSignal(object)
+
+    def __init__(self, file):
+        QThread.__init__(self)
+        self.file = file
+
+    def run(self):
+        # j = self.file
+        self.data_downloaded.emit(f'1/{len(self.file)} - Starting.')
+        time.sleep(1)
+        for i, j in enumerate(self.file):
+            print(j)
+            # Generate file name
+            temp_fileName = j.split("/")
+            temp_fileName = temp_fileName[-1]
+            temp_fileName = temp_fileName.split(".")
+            temp_fileName = temp_fileName[0]
+            # Gnerate file Location
+            imgLoc = os.path.dirname(os.path.abspath(__file__)) + '/Images/' + temp_fileName + '.png'
+            imgLoc = imgLoc.replace('\\','/')
+            imgLoc = imgLoc.split('/')
+            imgLoc[0] = imgLoc[0].capitalize()
+            imgLoc = '/'.join(imgLoc)
+            
+
+            # Check if file already exists
+            for o, k in enumerate(image_locations):
+                if k == imgLoc:
+                    # buttonReply = QMessageBox.critical(self, 'File already exists', f"{temp_fileName}.DXF already exists!\n\nWould you like to overwrite {temp_fileName}?", QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
+                    # if buttonReply == QMessageBox.No: continue
+                    # elif buttonReply == QMessageBox.Cancel: return
+                    # elif buttonReply == QMessageBox.Yes:
+                    # if os.path.exists(k): os.remove(k)
+                    Data_JSON_Contents.pop(o)
+
+            dxffilepath = j
+
+            #self.lblState.setText("Getting dimensions.")
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Extracting {temp_fileName}.DXF..')
+            # Force command to run, and halt the program untill the process is finished
+            os.popen(f'dia \"{j}\" -e properties.png').read()
+            # p = subprocess.Popen(f'dia \"{j}\" -e properties.png')
+            # p.communicate() #now wait plus that you can send commands to process
+            # time.sleep(5)
+            # while os.path.exists("properties.png"):
+            # time.sleep(1)
+            # Get data from DXF FILE
+            im = cv2.imread('properties.png')
+            h, w, c = im.shape
+            print('width:  ', w)
+            print('height: ', h)
+            if w > h: s = w
+            else: s = h
+
+            # convert DXF file to PNG
+            # #self.lblState.setText("Extracting DXF..")
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF to PNG...')
+            copyfile(dxffilepath, "clone.DXF")
+            extract_all('clone.DXF')
+            drawing = svg2rlg('clone.DXF')
+            # #self.lblState.setText("Converting DXF...")
+            renderPM.drawToFile(drawing, f"Images/{temp_fileName}.png", fmt="PNG")
+
+            # #self.lblState.setText("Finalizing image....")
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
+            # Make image black and white
+            originalImage = cv2.imread(imgLoc)
+            originalImage = cv2.resize(originalImage, (int(w/2), int(h/2)))
+            originalImage = cv2.GaussianBlur(originalImage,(3,1),0)
+
+
+            (thresh, blackAndWhiteImage) = cv2.threshold(originalImage, 250, 255, cv2.THRESH_BINARY)
+            cv2.imwrite(f"{imgLoc}", blackAndWhiteImage)
+
+            top, bottom, left, right = 50, 50, 50 ,50
+            color = (255, 255, 255)
+            # add margin
+            im = Image.open(imgLoc)
+            width, height = im.size
+            new_width = width + right + left
+            new_height = height + top + bottom
+            result = Image.new(im.mode, (new_width, new_height), color)
+            result.paste(im, (left, top))
+            result.save(imgLoc, quality=95)
+            
+            top, bottom, left, right = int(50/5),  int(50/5), int(50/5), int(50/5)
+            color = (0, 0, 0)
+            im = Image.open(imgLoc)
+            width, height = im.size
+            new_width = width + right + left
+            new_height = height + top + bottom
+            result = Image.new(im.mode, (new_width, new_height), color)
+            result.paste(im, (left, top))
+            result.save(imgLoc, quality=95)
+            
+            # #self.lblState.setText("Saving.....")
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Saving.....')
+            Data_JSON_Contents.append({
+            'fileName': [temp_fileName],
+            'imgLoc': [imgLoc],
+            'quantity':[1]
+            })
+            # save data to JSON file
+            sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
+            with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
+            # self.progressBar.setValue(i+1)
+            
+            # Reload GUI
+            # info = urllib2.urlopen(self.url).info()
+            # self.data_downloaded.emit('%s\n%s' % (self.url, info))
+        
+        os.remove('properties.png')
+        os.remove('clone.DXF')
+        self.data_downloaded.emit('Finished!')
+        time.sleep(1)
+        self.data_downloaded.emit('')
 
 class mainwindowUI(QMainWindow):
     def __init__(self, parent = None):
@@ -24,115 +142,62 @@ class mainwindowUI(QMainWindow):
         uic.loadUi('MainWindow.ui', self)
         self.lastTextBoxInFucos = 0
         self.setStyleSheet(open("style.qss", "r").read())
+        
         self.btnAdd = self.findChild(QPushButton, 'btnAdd')
         self.btnAdd.clicked.connect(self.add)
         
+        self.lblState = self.findChild(QLabel,'lblState')
+        #self.lblState.setText("")
+        
         self.actionPrint = self.findChild(QAction, 'actionPrint')
         self.actionPrint.triggered.connect(self.print_widget)
+        
+        self.actionPrint = self.findChild(QAction, 'action_Add')
+        self.actionPrint.triggered.connect(self.add)
         
         self.clearLayout(self.gridLayoutItems)
         self.reloadListUI()
         # self.print_widget()
         self.show()
+    def start_conversion(self, files):
+        self.threads = []
+        converter = ConvertThread(files)
+        converter.data_downloaded.connect(self.on_data_ready)
+        self.threads.append(converter)
+        converter.start()
+    def on_data_ready(self, text):
+        self.lblState.setText(f"{text}")
+        self.clearLayout(self.gridLayoutItems)
+        self.reloadListUI()
     def add(self):
         # open file directory
         files, _ = QFileDialog.getOpenFileNames(self,"Add Files", "","DXF Files (*.dxf)")
+        existing_files = []
+        non_existing_files = []
         if files:
-            # self.addFiles(files)
+            print(files)
+            temp_fileNames = []
             for i, j in enumerate(files):
                 # Generate file name
                 temp_fileName = j.split("/")
                 temp_fileName = temp_fileName[-1]
                 temp_fileName = temp_fileName.split(".")
                 temp_fileName = temp_fileName[0]
+                temp_fileNames.append(temp_fileName)
                 
-                # Generate final file location for the image
-                imgLoc = j.split("/")
-                imgLoc.pop(-1)
-                imgLoc = '/'.join(imgLoc)
-                imgLoc = imgLoc + '/Images/' + temp_fileName + '.png'
-                
-                # Check if file already exists
-                for o, k in enumerate(image_locations):
-                    if k == imgLoc:
-                        buttonReply = QMessageBox.critical(self, 'File already exists', f"{temp_fileName}.DXF already exists!\n\nWould you like to overwrite {temp_fileName}?", QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
-                        if buttonReply == QMessageBox.No: continue
-                        elif buttonReply == QMessageBox.Cancel: return
-                        elif buttonReply == QMessageBox.Yes:
-                            if os.path.exists(k): os.remove(k)
-                            Data_JSON_Contents.pop(o)
-
-                dxffilepath = j
-                
-                # self.lblState.setText("Getting dimensions.")
-                os.popen(f'dia \"{j}\" -e properties.png')
-                time.sleep(5)
-                while os.path.exists("properties.png"):
-                    # time.sleep(1)
-                    # Get data from DXF FILE
-                    im = cv2.imread('properties.png')
-                    h, w, c = im.shape
-                    print('width:  ', w)
-                    print('height: ', h)
-                    if w > h: s = w
-                    else: s = h
-                    
-                    # convert DXF file to PNG
-                    # self.lblState.setText("Extracting DXF..")
-                    copyfile(dxffilepath, "clone.DXF")
-                    extract_all('clone.DXF', size=s/20)
-                    drawing = svg2rlg('clone.DXF')
-                    # self.lblState.setText("Converting DXF...")
-                    renderPM.drawToFile(drawing, f"Images/{temp_fileName}.png", fmt="PNG")
-                    
-                    # self.lblState.setText("Finalizing image....")
-                    # Make image black and white
-                    originalImage = cv2.imread(imgLoc)
-                    originalImage = cv2.resize(originalImage, (int(w/2), int(h/2)))
-                    # originalImage = cv2.GaussianBlur(originalImage,(3,1),0)
-                    
-                    
-                    (thresh, blackAndWhiteImage) = cv2.threshold(originalImage, 250, 255, cv2.THRESH_BINARY)
-                    cv2.imwrite(f"{imgLoc}", blackAndWhiteImage)
-                    
-                    top, bottom, left, right = 50, 50, 50 ,50
-                    color = (255, 255, 255)
-                    # add margin
-                    im = Image.open(imgLoc)
-                    width, height = im.size
-                    new_width = width + right + left
-                    new_height = height + top + bottom
-                    result = Image.new(im.mode, (new_width, new_height), color)
-                    result.paste(im, (left, top))
-                    result.save(imgLoc, quality=95)
-                    
-                    top, bottom, left, right = int(50/5),  int(50/5), int(50/5), int(50/5)
-                    color = (0, 0, 0)
-                    im = Image.open(imgLoc)
-                    width, height = im.size
-                    new_width = width + right + left
-                    new_height = height + top + bottom
-                    result = Image.new(im.mode, (new_width, new_height), color)
-                    result.paste(im, (left, top))
-                    result.save(imgLoc, quality=95)
-                    
-                    # self.lblState.setText("Saving.....")
-                    Data_JSON_Contents.append({
-                    'fileName': [temp_fileName],
-                    'imgLoc': [imgLoc],
-                    'quantity':[1]
-                    })
-                    # save data to JSON file
-                    sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
-                    with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
-                    os.remove('properties.png')
-                    os.remove('clone.DXF')
-                    # self.progressBar.setValue(i+1)
-                
-                # Reload GUI
-                print('finished.')
-            self.clearLayout(self.gridLayoutItems)
-            self.reloadListUI()
+                # else:
+                #     buttonReply = QMessageBox.critical(self, 'File already exists', f"{j}.DXF already exists!\n\nWould you like to overwrite {j}?", QMessageBox.YesToAll | QMessageBox.Yes | QMessageBox.Abort, QMessageBox.YesToAll)
+                #     if buttonReply == QMessageBox.Abort: return
+                #     elif buttonReply == QMessageBox.Yes: break
+                    # elif buttonReply == QMessageBox.YesToAll:
+                        # Loop over all items and do it automaticly
+            set_1 = set(temp_fileNames)
+            non_existing_files = [item for item in set_1 if item not in file_names]
+            print('\n')
+            print(existing_files)
+            print('\n')
+            print(non_existing_files)
+            self.start_conversion(files)
     def openImage(self, path):
         # threading.Thread(target=self.startThreadOpenImage,args=(path,)).start()
         # def startThreadOpenImage(self, path):
@@ -205,7 +270,7 @@ class mainwindowUI(QMainWindow):
             btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
             self.gridLayoutItems.addWidget(btnDelete, i+1, 3)
         
-        textBoxList[self.lastTextBoxInFucos].setFocus()
+        if textBoxList: textBoxList[self.lastTextBoxInFucos].setFocus()
         # print(self.lastTextBoxInFucos)
         # self.gridLayoutItems.setColumnStretch(3,0)
     def saveLineEdit(self, textBox, index):
@@ -337,12 +402,11 @@ def load_data_file(*args):
             for name in info['fileName']: file_names.append(name)
             for path in info['imgLoc']: image_locations.append(path)
             for quan in info['quantity']: quantities.append(quan)
-                
+
 if __name__ == '__main__':
     if not os.path.exists('Images'): os.makedirs('Images')
     file_exists = os.path.isfile(Data_JSON)
-    if file_exists:
-        load_data_file(file_names, image_locations, quantities)
+    if file_exists: load_data_file(file_names, image_locations, quantities)
     else:
         f = open(Data_JSON, "w+")
         f.write("[]")
