@@ -1,23 +1,18 @@
-
-QWidget {
-   background-color: #222222;
+/* 
+https://doc.qt.io/qt-5/stylesheet-examples.html
+*/
+QLabel#Name {
+   font:35px;
 }
-QLineEdit {
-   background-color: aliceblue;
-   color: #618b38;
-   font-style: italic;
-   font-weight: bold;
+QPushButton#btnAdd{
 }
-
-QLabel {
-   background-color: #222222;
-   color: #618b38;
+QPushButton#btnAdd:pressed{
 }
-
-QPushButton {
-   background-color: #8b0000;
-   color: #ffffff;
-   border-radius: 5px;
-   border-style: none;
-   height: 25px;
+QPushButton#btnAdd:hover{
+}
+QLineEdit#Quantity{
+   font:30px
+}
+QProgressBar{
+   text-align: left; 
 }
