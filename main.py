@@ -7,7 +7,7 @@ from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from PyQt5 import QtCore, QtWidgets, QtPrintSupport, QtGui
 from functools import partial
 
-from dxf2png.dxf2svg.pycore import save_svg_from_dxf, extract_all
+from dxf2svg.pycore import save_svg_from_dxf, extract_all
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 from shutil import copyfile
