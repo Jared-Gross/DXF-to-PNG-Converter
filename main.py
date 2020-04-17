@@ -164,7 +164,7 @@ class mainwindowUI(QMainWindow):
     resized = QtCore.pyqtSignal()
     def __init__(self, parent = None):
         super(mainwindowUI, self).__init__(parent)
-        uic.loadUi('JordanProgramListOrginizer/mainwindow.ui', self)
+        uic.loadUi('UI/mainwindow.ui', self)
         self.printer = QPrinter()
         self.setAcceptDrops(True)
         self.setGeometry(window_geometry[0],window_geometry[1],window_geometry[2],window_geometry[3])
@@ -626,7 +626,7 @@ class PhotoViewer(QGraphicsView):
 class aboutwindowUI(QDialog):
     def __init__(self, parent=None):
         super(aboutwindowUI, self).__init__(parent)
-        uic.loadUi('JordanProgramListOrginizer/aboutwindow.ui', self)
+        uic.loadUi('UI/aboutwindow.ui', self)
         self.setWindowTitle("About")
         self.setWindowIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogInfoView')))
         self.icon = self.findChild(QLabel, 'lblIcon')
