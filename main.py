@@ -6,12 +6,13 @@ from PyQt5 import uic, QtPrintSupport
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from PyQt5 import QtCore, QtWidgets, QtPrintSupport, QtGui
 from functools import partial
-
+# import pkg_resources.py2_warn
 from dxf2svg.pycore import save_svg_from_dxf, extract_all
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 from shutil import copyfile
-import sys, os, json, cv2, time, threading,ezdxf, imutils
+import sys, os, json, cv2, time, threading, ezdxf, imutils, reportlab, dxf2svg, natsort
+natsort_key = natsort.natsort_keygen()
 import numpy as np
 Data_JSON = "data.json"
 Data_JSON_Contents = []
@@ -19,7 +20,7 @@ Data_JSON_Contents = []
 file_names = []
 image_locations = []
 quantities = []
-window_geometry = [100, 200, 800, 600]
+window_geometry = [200, 50, 800, 600]
 class ConvertThread(QThread):  
     data_downloaded = pyqtSignal(object)
     def __init__(self, file):
@@ -48,7 +49,7 @@ class ConvertThread(QThread):
 
             self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Extracting {temp_fileName}.DXF..')
             # Force command to run, and halt the program untill the process is finished
-            os.popen(f'dia \"{dxffilepath}\" -e properties.png').read()
+            os.popen(f'Dia\\bin\\dia \"{dxffilepath}\" -e properties.png').read()
 
             # Get data from DXF FILE
             im = cv2.imread('properties.png')
@@ -61,10 +62,15 @@ class ConvertThread(QThread):
             # convert DXF file to PNG
             self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF to PNG...')
             copyfile(dxffilepath, "clone.DXF")
-            extract_all('clone.DXF',size = 512)
+            if hei > 2000 and wid < 200: extract_all('clone.DXF',size = 400)
+            elif hei > 2000 and wid > 200: extract_all('clone.DXF',size = 300)
+            elif wid > 2000 and hei < 200: extract_all('clone.DXF',size = 400)
+            elif wid > 2000 and  hei > 200: extract_all('clone.DXF',size = 300)
+            else: extract_all('clone.DXF',size = 300)
             # else: extract_all('clone.DXF', size = s)
             drawing = svg2rlg('clone.DXF')
             renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
+            # os.popen(f'{os.getcwd()}\\Inkscape\\bin\\inkscape \"{dxffilepath}\" -o  \"{imgLoc}\"').read()
     
             self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
                 
@@ -167,7 +173,7 @@ class mainwindowUI(QMainWindow):
         uic.loadUi('UI/mainwindow.ui', self)
         self.printer = QPrinter()
         self.setAcceptDrops(True)
-        self.setGeometry(window_geometry[0],window_geometry[1],window_geometry[2],window_geometry[3])
+        self.setGeometry(window_geometry[0],window_geometry[1]+35,window_geometry[2],window_geometry[3]-35)
         self.resized.connect(self.getSize)
         
         self.txtBoxList = []
@@ -178,7 +184,7 @@ class mainwindowUI(QMainWindow):
         self.btnAdd.setObjectName('btnAdd')
         self.btnAdd.clicked.connect(partial(self.add, True, ''))
         self.btnAdd.setShortcut('Ctrl+O')
-
+        
         # saveShortcut = QShortcut(QKeySequence("Ctrl+s"), self)
         # saveShortcut.activated.connect(self.save) 
         
@@ -324,8 +330,21 @@ class mainwindowUI(QMainWindow):
             if not existing_files: 
                 self.start_conversion(files)
                 return
-            if new_files: self.start_conversion(new_files)
-            else: QMessageBox.information(self, 'All files already exist.', f"All the selected files are already added.\nThere are no new files to add.", QMessageBox.Ok, QMessageBox.Ok)
+            existing_files.sort(key=natsort_key)
+            # print(existing_files)
+            # global Data_JSON_Contents
+            for i, j in enumerate(existing_files):
+                for o, k in enumerate(Data_JSON_Contents[0]['fileName']):
+                    if j == k:
+                        # print(o)
+                        print(o)
+                        Data_JSON_Contents.pop(o)
+                        sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
+                        with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
+                        load_data_file(file_names, image_locations, quantities)
+            # if new_files: 
+            self.start_conversion(files)
+            # else: QMessageBox.information(self, 'All files already exist.', f"All the selected files are already added.\nThere are no new files to add.", QMessageBox.Ok, QMessageBox.Ok)
     def openImage(self, path):
         # threading.Thread(target=self.startThreadOpenImage,args=(path,)).start()
         # def startThreadOpenImage(self, path):
@@ -365,10 +384,15 @@ class mainwindowUI(QMainWindow):
         self.txtBoxList.clear()
         if searchText == '':
             for i, j in enumerate(file_names):
+                line = QFrame()
+                line.setFrameShape(QFrame.HLine)
+                line.setLineWidth(3)
+                if not i == 0: self.gridLayoutItems.addWidget(line, i+i, 2)
                 label = QLabel(j)
                 label.setObjectName('Name')
+                
                 # label.setFixedSize(128,20)
-                self.gridLayoutItems.addWidget(label, i, 0)
+                self.gridLayoutItems.addWidget(label, i+i+1, 0)
                 
                 textBoxInput = QLineEdit("1")
                 textBoxInput.setObjectName('Quantity')
@@ -379,7 +403,7 @@ class mainwindowUI(QMainWindow):
                 textBoxInput.setFocusPolicy(Qt.StrongFocus)
                 self.txtBoxList.append(textBoxInput)
                 textBoxInput.setFixedSize(70,50)
-                self.gridLayoutItems.addWidget(textBoxInput, i, 1)
+                self.gridLayoutItems.addWidget(textBoxInput, i+i+1, 1)
                 
                 btnImage = QPushButton()
                 btnImage.clicked.connect(partial(self.openImage, image_locations[i]))
@@ -387,21 +411,28 @@ class mainwindowUI(QMainWindow):
                 btnImage.setIconSize(QSize(512,100))
                 btnImage.setFixedSize(512,100)
                 btnImage.setFlat(True)
-                self.gridLayoutItems.addWidget(btnImage, i, 2)
+                self.gridLayoutItems.addWidget(btnImage, i+i+1, 2)
                 
                 btnDelete = QPushButton()
                 btnDelete.setFlat(True)
                 btnDelete.setFixedSize(32,32)
                 btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
                 btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
-                self.gridLayoutItems.addWidget(btnDelete, i, 3)
+                self.gridLayoutItems.addWidget(btnDelete, i+i+1, 3)
+                
+                
         else:
             for i, j in enumerate(file_names):
                 if searchText.lower() in j.lower():
+                    line = QFrame()
+                    line.setFrameShape(QFrame.HLine)
+                    line.setLineWidth(3)
+                    if not i == 0: self.gridLayoutItems.addWidget(line, i+i, 2)
+                    
                     label = QLabel(j)
                     label.setObjectName('Name')
                     # label.setFixedSize(128,20)
-                    self.gridLayoutItems.addWidget(label, i, 0)
+                    self.gridLayoutItems.addWidget(label, i+i+1, 0)
                     
                     textBoxInput = QLineEdit("1")
                     textBoxInput.setObjectName('Quantity')
@@ -412,7 +443,7 @@ class mainwindowUI(QMainWindow):
                     textBoxInput.setFocusPolicy(Qt.StrongFocus)
                     self.txtBoxList.append(textBoxInput)
                     textBoxInput.setFixedSize(70,50)
-                    self.gridLayoutItems.addWidget(textBoxInput, i, 1)
+                    self.gridLayoutItems.addWidget(textBoxInput, i+i+1, 1)
                     
                     btnImage = QPushButton()
                     btnImage.clicked.connect(partial(self.openImage, image_locations[i]))
@@ -420,14 +451,14 @@ class mainwindowUI(QMainWindow):
                     btnImage.setIconSize(QSize(512,100))
                     btnImage.setFixedSize(512,100)
                     btnImage.setFlat(True)
-                    self.gridLayoutItems.addWidget(btnImage, i, 2)
+                    self.gridLayoutItems.addWidget(btnImage, i+i+1, 2)
                     
                     btnDelete = QPushButton()
                     btnDelete.setFlat(True)
                     btnDelete.setFixedSize(32,32)
                     btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
                     btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
-                    self.gridLayoutItems.addWidget(btnDelete, i, 3)
+                    self.gridLayoutItems.addWidget(btnDelete, i+i+1, 3)
         if not self.txtBoxList:
             label = QLabel()
             if not file_names: 
@@ -635,7 +666,7 @@ class aboutwindowUI(QDialog):
         myScaledPixmap = pixmap.scaled(self.icon.size(), Qt.KeepAspectRatio)
         self.icon.setPixmap(myScaledPixmap)
         self.lisenceText = self.findChild(QLabel,'label_2')
-        with open('LICENSE.md', 'r') as f: self.lisenceText.setText(f.read())
+        with open('LICENSE', 'r') as f: self.lisenceText.setText(f.read())
         self.btnClose = self.findChild(QPushButton, 'btnClose')
         self.btnClose.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogCloseButton')))
         self.btnClose.clicked.connect(self.close)
