@@ -69,7 +69,8 @@ class ConvertThread(QThread):
             else: extract_all('clone.DXF',size = 300)
             # else: extract_all('clone.DXF', size = s)
             drawing = svg2rlg('clone.DXF')
-            renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
+            try: renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
+            except: print('renderPM Font error')
             # os.popen(f'{os.getcwd()}\\Inkscape\\bin\\inkscape \"{dxffilepath}\" -o  \"{imgLoc}\"').read()
     
             self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
@@ -147,20 +148,15 @@ class ConvertThread(QThread):
         (h, w) = image.shape[:2]
         # if both the width and height are None, then return the
         # original image
-        if width is None and height is None:
-            return image
+        if width is None and height is None: return image
         # check to see if the width is None
-        if width is None:
-            # calculate the ratio of the height and construct the
-            # dimensions
-            r = height / float(h)
-            dim = (int(w * r), height)
+        # calculate the ratio of the height and construct the
+        # dimensions
+        if width is None: r = height / float(h); dim = (int(w * r), height)
         # otherwise, the height is None
-        else:
-            # calculate the ratio of the width and construct the
-            # dimensions
-            r = width / float(w)
-            dim = (width, int(h * r))
+        # calculate the ratio of the width and construct the
+        # dimensions
+        else: r = width / float(w); dim = (width, int(h * r))
         # resize the image
         resized = cv2.resize(image, dim, interpolation = inter)
         # return the resized image
