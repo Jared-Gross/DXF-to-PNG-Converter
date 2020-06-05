@@ -46,85 +46,107 @@ class ConvertThread(QThread):
             imgLoc = '/'.join(imgLoc)
             
             dxffilepath = j
-
-            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Extracting {temp_fileName}.DXF..')
-            # Force command to run, and halt the program untill the process is finished
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Starting {temp_fileName}.DXF..')
             os.popen(f'Dia\\bin\\dia \"{dxffilepath}\" -e properties.png').read()
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Extracting {temp_fileName}.DXF..')
+            os.popen(f'{os.getcwd()}\\Inkscape\\bin\\inkscape \"{dxffilepath}\" -o  \"{imgLoc}\"').read()
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF..')
+        #     # Force command to run, and halt the program untill the process is finished
 
-            # Get data from DXF FILE
-            im = cv2.imread('properties.png')
-            hei, wid, c = im.shape
-            print('width:  ', wid)
-            print('height: ', hei)
+        #     # Get data from DXF FILE
+            img = cv2.imread('properties.png')
+            hei, wid, c = img.shape
             if wid > hei: s = wid
             else: s = hei
+            image = cv2.imread(imgLoc, cv2.IMREAD_UNCHANGED)
 
-            # convert DXF file to PNG
-            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF to PNG...')
-            copyfile(dxffilepath, "clone.DXF")
-            if hei > 2000 and wid < 200: extract_all('clone.DXF',size = 400)
-            elif hei > 2000 and wid > 200: extract_all('clone.DXF',size = 300)
-            elif wid > 2000 and hei < 200: extract_all('clone.DXF',size = 400)
-            elif wid > 2000 and  hei > 200: extract_all('clone.DXF',size = 300)
-            else: extract_all('clone.DXF',size = 300)
-            # else: extract_all('clone.DXF', size = s)
-            drawing = svg2rlg('clone.DXF')
-            try: renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
-            except: print('renderPM Font error')
-            # os.popen(f'{os.getcwd()}\\Inkscape\\bin\\inkscape \"{dxffilepath}\" -o  \"{imgLoc}\"').read()
-    
-            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
-                
-            # Make image black and white
-            originalImage = cv2.imread(imgLoc)
-            if s < 400:
-                if wid > hei: originalImage = self.image_resize(originalImage, width = 512)
-                else: originalImage = self.image_resize(originalImage, height = 512)
-            # find all the 'black' shapes in the image
-            lower = np.array([0, 0, 0])
-            upper = np.array([250, 250, 250])
-            originalImage = cv2.inRange(originalImage, lower, upper)
-            originalImage = (255-originalImage)
-            # originalImage = cv2.GaussianBlur(originalImage,(3,1),0)
-            # (thresh, blackAndWhiteImage) = cv2.threshold(originalImage, 250, 255, cv2.THRESH_BINARY)
-            cv2.imwrite(imgLoc,originalImage)
-            # if wid < 500 and hei < 500:
+            #make mask of where the transparent bits are
+            trans_mask = image[:,:,3] == 0
+
+            #replace areas of transparency with white and not transparent
+            image[trans_mask] = [255, 255, 255, 255]
+
+            #new image without alpha channel...
+            new_img = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+            cv2.imwrite(imgLoc, new_img)
             img = cv2.imread(imgLoc)
-            # convert img to grayscale
+        #     # convert DXF file to PNG
+        #     self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF to PNG...')
+        #     copyfile(dxffilepath, "clone.DXF")
+        #     if hei > 2000 and wid < 200: extract_all('clone.DXF',size = 400)
+        #     elif hei > 2000 and wid > 200: extract_all('clone.DXF',size = 300)
+        #     elif wid > 2000 and hei < 200: extract_all('clone.DXF',size = 400)
+        #     elif wid > 2000 and  hei > 200: extract_all('clone.DXF',size = 300)
+        #     else: extract_all('clone.DXF',size = 300)
+        #     # else: extract_all('clone.DXF', size = s)
+        #     drawing = svg2rlg('clone.DXF')
+        #     try: renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
+        #     except: print('renderPM Font error')
+    
+        #     self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
+                
+        #     # Make image black and white 
+            # originalImage = cv2.imread(imgLoc)
+        #     if s < 400:
+        #         if wid > hei: originalImage = self.image_resize(originalImage, width = 512)
+        #         else: originalImage = self.image_resize(originalImage, height = 512)
+        #     # find all the 'black' shapes in the image
+        #     lower = np.array([0, 0, 0])
+        #     upper = np.array([250, 250, 250])
+        #     originalImage = cv2.inRange(originalImage, lower, upper)
+        #     originalImage = (255-originalImage)
+        #     # originalImage = cv2.GaussianBlur(originalImage,(3,1),0)
+        #     # (thresh, blackAndWhiteImage) = cv2.threshold(originalImage, 250, 255, cv2.THRESH_BINARY)
+        #     cv2.imwrite(imgLoc,originalImage)
+        #     # if wid < 500 and hei < 500:
+        #     # convert img to grayscale
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            # invert polarity
+        #     # invert polarity
             gray = 255 - gray
-            # do adaptive threshold on gray image
+        #     # do adaptive threshold on gray image
             thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY)[1]
-            # Get contours
+        #     # Get contours
             cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-            # for c in cnts:
-            # create white image
+        #     # for c in cnts:
+        #     # create white image
             result = np.full_like(img, (255,255,255))
-            # get bounding box
-            x,y,w,h = cv2.boundingRect(cnts[0])
-            # crop region of img using bounding box
+        #     # get bounding box
+            # all_cnts_heights = []
+            # all_cnts_widths = []
+            # for i, j in enumerate(cnts):
+            #     width = j[0][0][1]
+            #     height = j[0][0][0]
+            #     all_cnts_heights.append(height)
+            #     all_cnts_widths.append(width)
+            # highest_val = max(all_cnts_heights)
+            # widest_val = max(all_cnts_widths)
+            # print(widest_val)
+            # print(highest_val)
+            # print(cnts[all_cnts_widths.index(widest_val)])
+            cnts = (cnts[0] if len(cnts) == 1 else cnts[1])
+            if cnts[-1].any(): x,y,w,h = cv2.boundingRect(cnts[-1])
+            else: x,y,w,h = cv2.boundingRect(cnts[0])
+        #     # crop region of img using bounding box
             region = img[y:y+h, x:x+w]
             
-            lower = np.array([0, 0, 0])
-            upper = np.array([250, 250, 250])
-            region = cv2.inRange(region, lower, upper)
-            region = (255-region)
-            # save region to new image
-            if s < 500: region = cv2.resize(region, (int(wid), int(hei)))
-            else: region = cv2.resize(region, (int(wid/2), int(hei/2)))
+        #     lower = np.array([0, 0, 0])
+        #     upper = np.array([250, 250, 250])
+        #     region = cv2.inRange(region, lower, upper)
+        #     region = (255-region)
+        #     # save region to new image
+        #     if s < 500: region = cv2.resize(region, (int(wid), int(hei)))
+        #     else: region = cv2.resize(region, (int(wid/2), int(hei/2)))
             if hei > wid: region = imutils.rotate_bound(region, 90)
-            cv2.imwrite(imgLoc, region)
+            # cv2.imwrite(imgLoc, region)
 
-            img = cv2.imread(imgLoc)
-            img = cv2.copyMakeBorder(img.copy(),10,10,10,10,cv2.BORDER_CONSTANT,value=[255,255,255])
-            img = self.image_resize(img, width=512)
-            cv2.imwrite(imgLoc, img)
-            region = cv2.imread(imgLoc)
-            region = cv2.inRange(region, lower, upper)
-            region = (255-region)
+            # img = cv2.imread(imgLoc)
+            region = cv2.copyMakeBorder(region.copy(),10,10,10,10,cv2.BORDER_CONSTANT,value=[255,255,255])
+            # img = self.image_resize(img, width=512)
             cv2.imwrite(imgLoc, region)
+        #     region = cv2.imread(imgLoc)
+        #     region = cv2.inRange(region, lower, upper)
+        #     region = (255-region)
+        #     cv2.imwrite(imgLoc, region)
             self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Saving.....')
             Data_JSON_Contents.append({
             'fileName': [temp_fileName],
@@ -136,7 +158,7 @@ class ConvertThread(QThread):
             with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
         
         os.remove('properties.png')
-        os.remove('clone.DXF')
+        # os.remove('clone.DXF')
         self.data_downloaded.emit('Finished!')
         time.sleep(1)
         self.data_downloaded.emit('')
