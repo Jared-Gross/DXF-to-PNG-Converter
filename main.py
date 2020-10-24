@@ -1,17 +1,20 @@
-from PyQt5.QtWidgets import *
+import json
+import os
+import sys
+from functools import partial
+
+import cv2
+import ezdxf
+import imutils
+import matplotlib.pyplot as plt
+from ezdxf.addons.drawing import Frontend, RenderContext
+from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+from PyQt5 import *
+from PyQt5 import QtCore, QtGui, QtPrintSupport, QtWidgets, uic
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5 import *
-from PyQt5 import uic, QtPrintSupport
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
-from PyQt5 import QtCore, QtWidgets, QtPrintSupport, QtGui
-from functools import partial
-import matplotlib.pyplot as plt
-
-from ezdxf.addons.drawing import RenderContext, Frontend
-from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
-from shutil import copyfile
-import sys, os, json, cv2, time, threading, ezdxf, imutils, subprocess,re
+from PyQt5.QtWidgets import *
 
 Data_JSON = "data.json"
 Data_JSON_Contents = []
@@ -19,7 +22,7 @@ Data_JSON_Contents = []
 file_names = []
 image_locations = []
 quantities = []
-window_geometry = [100, 200, 800, 600]
+window_geometry = [100, 200, 1000, 600]
 
 
 class ConvertThread(QThread):
@@ -30,51 +33,35 @@ class ConvertThread(QThread):
         self.file = file
         self.default_img_format = '.png'
         self.default_img_res = 300
-        print(self.file)
+
     def run(self):
-        # j = self.file
         self.data_downloaded.emit(f'1/{len(self.file)} - Starting.')
-        # time.sleep(1)
+        loop = QEventLoop()
+        QTimer.singleShot(1000, loop.quit)
+        loop.exec_()
         for i, j in enumerate(self.file):
-            print(j)
+            dxffilepath = j
             # Generate file name
-            temp_fileName = j.split("/")
-            temp_fileName = temp_fileName[-1]
-            temp_fileName = temp_fileName.split(".")
-            temp_fileName = temp_fileName[0]
+            temp_fileName = j.split("/")[-1].split(".")[0]
 
-
-            # Gnerate file Location
-            path = os.path.dirname(os.path.abspath(__file__)) + '/Images/' + temp_fileName + '.png'
-            path = path.replace('\\', '/')
+            # Gnerate save file Location
+            path = os.path.dirname(os.path.abspath(__file__)) + '/Images/' + temp_fileName + '.png'.replace('\\', '/')
             path = path.split('/')
             path[0] = path[0].capitalize()
             path = '/'.join(path)
 
-            dxffilepath = j
-
-            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Extracting {temp_fileName}.DXF..')
+            self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting..')
             self.convert_dxf2img(temp_fileName, dxffilepath, path, img_format='.png', img_res = 300, index=i)
 
             Data_JSON_Contents.append({
             'fileName': [temp_fileName],
-            'imgLoc': [path],
-            'quantity':[1]
+            'imgLoc': ['/Images/' + temp_fileName + '.png'],
+            'quantity': [1]
             })
-            # save data to JSON file
-            sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
-            with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
-
-            # Force command to run, and halt the program untill the process is finished
-            # os.popen(f'dia \"{dxffilepath}\" -e properties.png').read()
-
-            # # if the script don't need output.
-            # subprocess.call("php /path/to/your/script.php")
-
-            # if you want output
-
+            with open(Data_JSON, mode='w+', encoding='utf-8') as file:
+                sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
+                json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
         self.data_downloaded.emit('Finished!')
-        self.data_downloaded.emit('')
     def convert_dxf2img(self, name, path, save_to, img_format, img_res, index):
         # for name in names:
         doc = ezdxf.readfile(path)
@@ -84,10 +71,12 @@ class ConvertThread(QThread):
         # The auditor.errors attribute stores severe errors,
         # which *may* raise exceptions when rendering.
         if len(auditor.errors) != 0:
-            raise exception("The DXF document is damaged and can't be converted!")
+            self.data_downloaded.emit(f'{index+1}/{len(self.file)} - {name} - Error!')
+            loop = QEventLoop()
+            QTimer.singleShot(1000, loop.quit)
+            loop.exec_()
+            return
         else :
-            # img_name = re.findall("(\S+)\.",name)  # select the image name that is the same as the dxf file name
-            self.data_downloaded.emit(f'{index+1}/{len(self.file)} - {name} - Converting.....')
             fig = plt.figure()
             ax = fig.add_axes([0, 0, 1, 1])
             ctx = RenderContext(doc)
@@ -95,117 +84,13 @@ class ConvertThread(QThread):
             ctx.current_layout.set_colors(bg='#FFFFFF')
             out = MatplotlibBackend(ax)
             Frontend(ctx, out).draw_layout(msp, finalize=True)
-
-            first_param = ''.join(name) + img_format  #concatenate list and string
-
-            self.data_downloaded.emit(f'{index+1}/{len(self.file)} - {name} - Saving.....')
+            self.data_downloaded.emit(f'{index+1}/{len(self.file)} - {name} - Saving...')
             fig.savefig(save_to, dpi=img_res)
             im = cv2.imread(save_to)
             hei, wid, c = im.shape
             if hei > wid:
                 region = imutils.rotate_bound(im, 90)
                 cv2.imwrite(save_to, region)
-
-            # proc = subprocess.Popen("php /path/to/your/script.php", shell=True, stdout=subprocess.PIPE)
-            # script_response = proc.stdout.read()
-    #         # Get data from DXF FILE
-    #         im = cv2.imread('properties.png')
-    #         hei, wid, c = im.shape
-    #         print('width:  ', wid)
-    #         print('height: ', hei)
-    #         if wid > hei: s = wid
-    #         else: s = hei
-
-    #         # convert DXF file to PNG
-    #         self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Converting {temp_fileName}.DXF to PNG...')
-    #         copyfile(dxffilepath, "clone.DXF")
-    #         extract_all('clone.DXF',size = 512)
-    #         # else: extract_all('clone.DXF', size = s)
-    #         drawing = svg2rlg('clone.DXF')
-    #         renderPM.drawToFile(drawing, imgLoc, fmt="PNG")
-
-    #         self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Finalizing image....')
-
-    #         # Make image black and white
-    #         originalImage = cv2.imread(imgLoc)
-    #         if s < 400:
-    #             if wid > hei: originalImage = self.image_resize(originalImage, width = 512)
-    #             else: originalImage = self.image_resize(originalImage, height = 512)
-    #         # find all the 'black' shapes in the image
-    #         lower = np.array([0, 0, 0])
-    #         upper = np.array([250, 250, 250])
-    #         originalImage = cv2.inRange(originalImage, lower, upper)
-    #         originalImage = (255-originalImage)
-    #         # originalImage = cv2.GaussianBlur(originalImage,(3,1),0)
-    #         # (thresh, blackAndWhiteImage) = cv2.threshold(originalImage, 250, 255, cv2.THRESH_BINARY)
-    #         cv2.imwrite(imgLoc,originalImage)
-    #         # if wid < 500 and hei < 500:
-    #         img = cv2.imread(imgLoc)
-    #         # convert img to grayscale
-    #         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #         # invert polarity
-    #         gray = 255 - gray
-    #         # do adaptive threshold on gray image
-    #         thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY)[1]
-    #         # Get contours
-    #         cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    #         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-    #         # for c in cnts:
-    #         # create white image
-    #         result = np.full_like(img, (255,255,255))
-    #         # get bounding box
-    #         x,y,w,h = cv2.boundingRect(cnts[0])
-    #         # crop region of img using bounding box
-    #         region = img[y:y+h, x:x+w]
-
-    #         lower = np.array([0, 0, 0])
-    #         upper = np.array([250, 250, 250])
-    #         region = cv2.inRange(region, lower, upper)
-    #         region = (255-region)
-    #         # save region to new image
-    #         if s < 500: region = cv2.resize(region, (int(wid), int(hei)))
-    #         else: region = cv2.resize(region, (int(wid/2), int(hei/2)))
-    #         if hei > wid: region = imutils.rotate_bound(region, 90)
-    #         cv2.imwrite(imgLoc, region)
-
-    #         img = cv2.imread(imgLoc)
-    #         img = cv2.copyMakeBorder(img.copy(),10,10,10,10,cv2.BORDER_CONSTANT,value=[255,255,255])
-    #         img = self.image_resize(img, width=512)
-    #         cv2.imwrite(imgLoc, img)
-    #         region = cv2.imread(imgLoc)
-    #         region = cv2.inRange(region, lower, upper)
-    #         region = (255-region)
-    #         cv2.imwrite(imgLoc, region)
-    #         self.data_downloaded.emit(f'{i+1}/{len(self.file)} - {temp_fileName} - Saving.....')
-    #     os.remove('properties.png')
-    #     os.remove('clone.DXF')
-
-    # def image_resize(self, image, width = None, height = None, inter = cv2.INTER_AREA):
-    #     # initialize the dimensions of the image to be resized and
-    #     # grab the image size
-    #     dim = None
-    #     (h, w) = image.shape[:2]
-    #     # if both the width and height are None, then return the
-    #     # original image
-    #     if width is None and height is None:
-    #         return image
-    #     # check to see if the width is None
-    #     if width is None:
-    #         # calculate the ratio of the height and construct the
-    #         # dimensions
-    #         r = height / float(h)
-    #         dim = (int(w * r), height)
-    #     # otherwise, the height is None
-    #     else:
-    #         # calculate the ratio of the width and construct the
-    #         # dimensions
-    #         r = width / float(w)
-    #         dim = (width, int(h * r))
-    #     # resize the image
-    #     resized = cv2.resize(image, dim, interpolation = inter)
-    #     # return the resized image
-    #     return resized
-
 
 class mainwindowUI(QMainWindow):
     resized = QtCore.pyqtSignal()
@@ -260,6 +145,9 @@ class mainwindowUI(QMainWindow):
         self.actionSave.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogSaveButton')))
         self.actionSave.setShortcut('Ctrl+S')
         self.clearLayout(self.gridLayoutItems)
+
+        # threading.Thread(target=self.startThreadOpenImage,args=(path,)).start()
+        # threading.Thread(target=self.reloadListUI, args=(self.gridLayoutItems, '',)).start()
         self.reloadListUI('')
 
         # self.print_widget()
@@ -289,9 +177,7 @@ class mainwindowUI(QMainWindow):
         if event.mimeData().hasUrls:
             event.setDropAction(QtCore.Qt.CopyAction)
             event.accept()
-            links = []
-            for url in event.mimeData().urls():
-                links.append(str(url.toLocalFile()))
+            links = [str(url.toLocalFile()) for url in event.mimeData().urls()]
             self.add(False, links)
         else: event.ignore()
 
@@ -306,20 +192,19 @@ class mainwindowUI(QMainWindow):
         # self.lblState.setHidden(False)
         self.progressBar.setHidden(False)
         self.lblState.setText(f"{text}")
-        if not text == 'Finished!':
-            if not text == '':
-                currentNum = text.split('/')
-                currentNum = int(currentNum[0])
+        if text not in ['Finished!', '']:
+            currentNum = text.split('/')
+            currentNum = int(currentNum[0])
 
-                maxnum = text.split('/')
-                maxnum = maxnum[1]
-                maxnum = maxnum.split(' - ')
-                maxnum = int(maxnum[0])
+            maxnum = text.split('/')
+            maxnum = maxnum[1]
+            maxnum = maxnum.split(' - ')
+            maxnum = int(maxnum[0])
 
-                self.progressBar.setValue(currentNum)
-                self.progressBar.setMaximum(maxnum)
+            self.progressBar.setValue(currentNum)
+            self.progressBar.setMaximum(maxnum)
         self.progressBar.setFormat(' ' + text)
-        if text == '' or text == 'Finished!':
+        if text in ['', 'Finished!']:
             self.clearLayout(self.gridLayoutItems)
             self.reloadListUI('')
             self.progressBar.setHidden(True)
@@ -339,13 +224,8 @@ class mainwindowUI(QMainWindow):
         #         files.pop(i)
         if files:
             temp_fileNames = []
-            for i, j in enumerate(files):
-                # Generate file name
-                temp_fileName = j.split("/")
-                temp_fileName = temp_fileName[-1]
-                temp_fileName = temp_fileName.split(".")
-                temp_fileName = temp_fileName[0]
-                temp_fileNames.append(temp_fileName)
+            # Generate file name
+            for i, j in enumerate(files): temp_fileNames.append(j.split("/")[-1].split(".")[0])
             # idk what this does but it works and it makes it faster they say
             set_1 = set(temp_fileNames)
             # add all files to this list if it does not exist in the data.json file
@@ -381,8 +261,6 @@ class mainwindowUI(QMainWindow):
             else: QMessageBox.information(self, 'All files already exist.', f"All the selected files are already added.\nThere are no new files to add.", QMessageBox.Ok, QMessageBox.Ok)
 
     def openImage(self, path):
-        # threading.Thread(target=self.startThreadOpenImage,args=(path,)).start()
-        # def startThreadOpenImage(self, path):
         self.getSize()
         self.vi = view_image(path)
         self.vi.show()
@@ -422,78 +300,49 @@ class mainwindowUI(QMainWindow):
     def reloadListUI(self, searchText):
         load_data_file(file_names, image_locations, quantities)
         self.txtBoxList.clear()
-        if searchText == '':
-            for i, j in enumerate(file_names):
-                self.gridLayoutItems.rowStretch(1)
-                label = QLabel(j)
-                label.setObjectName('Name')
+        for i, j in enumerate(file_names):
+            if (searchText != ''and searchText.lower() in j.lower() or searchText == ''):
+                self.label = QLabel(j)
+                self.label.setObjectName('Name')
                 # label.setFixedSize(128,20)
-                self.gridLayoutItems.addWidget(label, i, 0, Qt.AlignCenter)
 
-                textBoxInput = QLineEdit("1")
-                textBoxInput.setObjectName('Quantity')
-                textBoxInput.setAlignment(QtCore.Qt.AlignCenter)
-                textBoxInput.setValidator(QIntValidator())
-                textBoxInput.setText(str(quantities[i]))
-                textBoxInput.editingFinished.connect(partial(self.saveLineEdit, textBoxInput, i))
-                textBoxInput.setFocusPolicy(Qt.StrongFocus)
-                self.txtBoxList.append(textBoxInput)
-                textBoxInput.setFixedSize(70, 50)
-                self.gridLayoutItems.addWidget(textBoxInput, i, 1, Qt.AlignCenter)
+                self.textBoxInput = QLineEdit("1")
+                self.textBoxInput.setObjectName('Quantity')
+                self.textBoxInput.setAlignment(QtCore.Qt.AlignCenter)
+                self.textBoxInput.setValidator(QIntValidator())
+                self.textBoxInput.setText(str(quantities[i]))
+                self.textBoxInput.editingFinished.connect(partial(self.saveLineEdit, self.textBoxInput, i))
+                self.textBoxInput.setFocusPolicy(Qt.StrongFocus)
+                self.txtBoxList.append(self.textBoxInput)
+                self.textBoxInput.setFixedSize(70, 50)
 
-                btnImage = ImageButton()
-                btnImage.clicked.connect(partial(self.openImage, image_locations[i]))
-                btnImage.setIcon(QIcon(image_locations[i]))
-                btnImage.setIconSize(QSize(508, 124))
-                btnImage.setFixedSize(512, 128)
-                btnImage.setFlat(True)
-                btnImage.setToolTip(image_locations[i])
-                btnImage.setStyleSheet("QPushButton{background-color: #FFFFFF; border-radius: 4px; border-style: none; border: 2px solid black;}")
-                self.gridLayoutItems.addWidget(btnImage, i, 2, Qt.AlignCenter)
+                self.btnImage = ImageButton()
+                self.btnImage.clicked.connect(partial(self.openImage, os.path.dirname(os.path.abspath(__file__)) + image_locations[i]))
+                self.btnImage.setIcon(QIcon(os.path.dirname(os.path.abspath(__file__)) + image_locations[i]))
+                self.btnImage.setIconSize(QSize(508, 124))
+                self.btnImage.setFixedSize(512, 128)
+                self.btnImage.setFlat(True)
+                self.btnImage.setToolTip(os.path.dirname(os.path.abspath(__file__)) + image_locations[i])
+                self.btnImage.setStyleSheet("QPushButton{background-color: #FFFFFF; border-radius: 4px; border-style: none; border: 2px solid black;}")
 
-                btnDelete = QPushButton()
-                btnDelete.setFlat(True)
-                btnDelete.setToolTip('Will delete: ' + image_locations[i] + ' and all of the saved data.')
-                btnDelete.setFixedSize(128, 128)
-                btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
-                btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
-                self.gridLayoutItems.addWidget(btnDelete, i, 3, Qt.AlignCenter)
-        else:
-            for i, j in enumerate(file_names):
-                if searchText.lower() in j.lower():
+                self.btnDelete = QPushButton()
+                self.btnDelete.setFlat(True)
+                self.btnDelete.setToolTip('Will delete: ' + os.path.dirname(os.path.abspath(__file__)) + image_locations[i] + ' and all of the saved data.')
+                self.btnDelete.setFixedSize(128, 128)
+                self.btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
+                self.btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
 
-                    label = QLabel(j)
-                    label.setObjectName('Name')
-                    # label.setFixedSize(128,20)
-                    self.gridLayoutItems.addWidget(label, i, 0, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.label, i, 0, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.textBoxInput, i, 1, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.btnImage, i, 2, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.btnDelete, i, 3, Qt.AlignCenter)
 
-                    textBoxInput = QLineEdit("1")
-                    textBoxInput.setObjectName('Quantity')
-                    textBoxInput.setAlignment(QtCore.Qt.AlignCenter)
-                    textBoxInput.setValidator(QIntValidator())
-                    textBoxInput.setText(str(quantities[i]))
-                    textBoxInput.editingFinished.connect(partial(self.saveLineEdit, textBoxInput, i))
-                    textBoxInput.setFocusPolicy(Qt.StrongFocus)
-                    self.txtBoxList.append(textBoxInput)
-                    textBoxInput.setFixedSize(70, 50)
-                    self.gridLayoutItems.addWidget(textBoxInput, i, 1, Qt.AlignCenter)
-
-                    btnImage = ImageButton()
-                    btnImage.clicked.connect(partial(self.openImage, image_locations[i]))
-                    btnImage.setIcon(QIcon(image_locations[i]))
-                    btnImage.setIconSize(QSize(508, 124))
-                    btnImage.setFixedSize(512, 128)
-                    btnImage.setFlat(True)
-                    btnImage.setToolTip(image_locations[i])
-                    self.gridLayoutItems.addWidget(btnImage, i, 2, Qt.AlignCenter)
-
-                    btnDelete = QPushButton()
-                    btnDelete.setFlat(True)
-                    btnDelete.setToolTip('Will delete: ' + image_locations[i] + ' and all of the saved data.')
-                    btnDelete.setFixedSize(128, 128)
-                    btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
-                    btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
-                    self.gridLayoutItems.addWidget(btnDelete, i, 3, Qt.AlignCenter)
+                # loop = QEventLoop()
+                # QTimer.singleShot(10, loop.quit)
+                # loop.exec_()
+                    # loop = QEventLoop()
+                    # QTimer.singleShot(100, loop.quit)
+                    # loop.exec_()
         if not self.txtBoxList:
             label = QLabel()
             if not file_names:
@@ -507,7 +356,7 @@ class mainwindowUI(QMainWindow):
             # label.setFixedSize(128,20)
             self.gridLayoutItems.addWidget(label, 0, 0)
 
-        time.sleep(0.5)
+        # time.sleep(0.5)
         # if self.txtBoxList: self.txtBoxList[self.lastTextBoxInFucos].setFocus()
 
         # print(self.lastTextBoxInFucos)
@@ -518,8 +367,7 @@ class mainwindowUI(QMainWindow):
         if '.' in self.newQuantity:
             QMessageBox.critical(self, 'Must be an integer.', "Must be a whole number.\n\nNo decimal places", QMessageBox.Ok, QMessageBox.Ok)
             return
-        elif self.newQuantity == '': return
-        elif self.newQuantity == quantities[index]: return
+        elif self.newQuantity in ['', quantities[index]]: return
         temp_path = image_locations[index]
         temp_name = file_names[index]
         Data_JSON_Contents.pop(index)
@@ -543,12 +391,10 @@ class mainwindowUI(QMainWindow):
     def save(self):
         Data_JSON_Contents.clear()
         for i, j in enumerate(file_names):
-            num = quantities[i]
-            path = image_locations[i]
             Data_JSON_Contents.append({
             'fileName': [j],
-            'imgLoc': [path],
-            'quantity':[int(num)]
+            'imgLoc': [image_locations[i]],
+            'quantity':[int(quantities[i])]
             })
         sortedList = sorted(Data_JSON_Contents, key=lambda i: i['fileName'])
         with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
@@ -671,8 +517,7 @@ class PhotoViewer(QGraphicsView):
         # self.setBackgroundBrush(QBrush(QColor(30, 30, 30)))
         self.setFrameShape(QFrame.NoFrame)
 
-    def hasPhoto(self):
-        return not self._empty
+    def hasPhoto(self): return not self._empty
 
     def fitInView(self, scale=True):
         rect = QRectF(self._photo.pixmap().rect())
@@ -683,8 +528,7 @@ class PhotoViewer(QGraphicsView):
                 self.scale(1 / unity.width(), 1 / unity.height())
                 viewrect = self.viewport().rect()
                 scenerect = self.transform().mapRect(rect)
-                factor = min(viewrect.width() / scenerect.width(),
-                             viewrect.height() / scenerect.height())
+                factor = min(viewrect.width() / scenerect.width(), viewrect.height() / scenerect.height())
                 self.scale(factor, factor)
             self._zoom = 0
 
@@ -708,22 +552,16 @@ class PhotoViewer(QGraphicsView):
             else:
                 factor = 0.8
                 self._zoom -= 1
-            if self._zoom > 0:
-                self.scale(factor, factor)
-            elif self._zoom == 0:
-                self.fitInView()
-            else:
-                self._zoom = 0
+            if self._zoom > 0: self.scale(factor, factor)
+            elif self._zoom == 0: self.fitInView()
+            else: self._zoom = 0
 
     def toggleDragMode(self):
-        if self.dragMode() == QGraphicsView.ScrollHandDrag:
-            self.setDragMode(QGraphicsView.NoDrag)
-        elif not self._photo.pixmap().isNull():
-            self.setDragMode(QGraphicsView.ScrollHandDrag)
+        if self.dragMode() == QGraphicsView.ScrollHandDrag: self.setDragMode(QGraphicsView.NoDrag)
+        elif not self._photo.pixmap().isNull(): self.setDragMode(QGraphicsView.ScrollHandDrag)
 
     def mousePressEvent(self, event):
-        if self._photo.isUnderMouse():
-            self.photoClicked.emit(self.mapToScene(event.pos()).toPoint())
+        if self._photo.isUnderMouse(): self.photoClicked.emit(self.mapToScene(event.pos()).toPoint())
         super(PhotoViewer, self).mousePressEvent(event)
 
 
