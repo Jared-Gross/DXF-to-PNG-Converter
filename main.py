@@ -5,6 +5,7 @@ from functools import partial
 
 import cv2
 import ezdxf
+import ctypes
 import imutils
 import threading
 import matplotlib.pyplot as plt
@@ -25,6 +26,10 @@ image_locations = []
 quantities = []
 description = []
 window_geometry = [100, 200, 1000, 600]
+
+company = 'TheCodingJs'
+title = 'DXF to PNG'
+version = 'v1.0.3'
 
 
 class ConvertThread(QThread):
@@ -101,6 +106,13 @@ class mainwindowUI(QMainWindow):
     def __init__(self, parent=None):
         super(mainwindowUI, self).__init__(parent)
         uic.loadUi('UI/mainwindow.ui', self)
+        if 'linux' not in sys.platform:
+            appid = u'{}.{}.{}'.format(company, title, version)
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+
+
+        self.setWindowIcon(QIcon(os.path.dirname(os.path.realpath(__file__)) + "/icon.png"))
+        self.setWindowTitle(f'{title} - {version}')
         self.printer = QPrinter()
 
         self.returns = {}
@@ -139,7 +151,8 @@ class mainwindowUI(QMainWindow):
 
         self.actionAbout = self.findChild(QAction, 'actionAbout_2')
         self.actionAbout.triggered.connect(self.openAbout)
-        self.actionAbout.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogInfoView')))
+        self.actionAbout.setIcon(QIcon(os.path.dirname(os.path.realpath(__file__)) + "/icon.png"))
+        # self.actionAbout.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogInfoView')))
 
         self.actionAbout_Qt = self.findChild(QAction, 'actionAbout_Qt')
         self.actionAbout_Qt.triggered.connect(qApp.aboutQt)
@@ -789,7 +802,8 @@ class aboutwindowUI(QDialog):
         myScaledPixmap = pixmap.scaled(self.icon.size(), Qt.KeepAspectRatio)
         self.icon.setPixmap(myScaledPixmap)
         self.lisenceText = self.findChild(QLabel, 'label_2')
-        with open('LICENSE', 'r') as f: self.lisenceText.setText(f.read())
+        with open('LICENSE', 'r') as f:
+            self.lisenceText.setText(f.read())
         self.btnClose = self.findChild(QPushButton, 'btnClose')
         self.btnClose.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogCloseButton')))
         self.btnClose.clicked.connect(self.close)
