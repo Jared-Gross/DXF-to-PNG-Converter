@@ -6,6 +6,7 @@ from functools import partial
 import cv2
 import ezdxf
 import imutils
+import threading
 import matplotlib.pyplot as plt
 from ezdxf.addons.drawing import Frontend, RenderContext
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
@@ -22,6 +23,7 @@ Data_JSON_Contents = []
 file_names = []
 image_locations = []
 quantities = []
+description = []
 window_geometry = [100, 200, 1000, 600]
 
 
@@ -54,9 +56,10 @@ class ConvertThread(QThread):
             self.convert_dxf2img(temp_fileName, dxffilepath, path, img_format='.png', img_res = 300, index=i)
 
             Data_JSON_Contents.append({
-            'fileName': [temp_fileName],
-            'imgLoc': ['/Images/' + temp_fileName + '.png'],
-            'quantity': [1]
+                'fileName': [temp_fileName],
+                'imgLoc': ['/Images/' + temp_fileName + '.png'],
+                'quantity': [1],
+                'description': ['']
             })
             with open(Data_JSON, mode='w+', encoding='utf-8') as file:
                 sortedList = sorted(Data_JSON_Contents, key = lambda i: i['fileName'])
@@ -99,6 +102,9 @@ class mainwindowUI(QMainWindow):
         super(mainwindowUI, self).__init__(parent)
         uic.loadUi('UI/mainwindow.ui', self)
         self.printer = QPrinter()
+
+        self.returns = {}
+
         self.setAcceptDrops(True)
         self.setGeometry(window_geometry[0], window_geometry[1], window_geometry[2], window_geometry[3])
         self.resized.connect(self.getSize)
@@ -128,6 +134,8 @@ class mainwindowUI(QMainWindow):
         self.actionPrint = self.findChild(QAction, 'actionPrint')
         self.actionPrint.triggered.connect(self.print_widget)
         self.actionPrint.setShortcut('Ctrl+P')
+
+        self.PrintWidget = self.findChild(QGroupBox, 'PrintWidget')
 
         self.actionAbout = self.findChild(QAction, 'actionAbout_2')
         self.actionAbout.triggered.connect(self.openAbout)
@@ -182,6 +190,7 @@ class mainwindowUI(QMainWindow):
         else: event.ignore()
 
     def start_conversion(self, files):
+        self.setCursor(Qt.BusyCursor)
         self.threads = []
         converter = ConvertThread(files)
         converter.data_downloaded.connect(self.on_data_ready)
@@ -208,6 +217,7 @@ class mainwindowUI(QMainWindow):
             self.clearLayout(self.gridLayoutItems)
             self.reloadListUI('')
             self.progressBar.setHidden(True)
+            self.unsetCursor()
 
     def add(self, openFileDirectory, dragDropFiles):
         # open file directory
@@ -262,7 +272,7 @@ class mainwindowUI(QMainWindow):
 
     def openImage(self, path):
         self.getSize()
-        self.vi = view_image(path)
+        self.vi = QImageViewer(path)
         self.vi.show()
         self.close()
 
@@ -289,21 +299,20 @@ class mainwindowUI(QMainWindow):
                 else: self.clearLayout(item.layout())
 
     def print_widget(self, printer):
-        screen = self.grab()
+        screen = self.PrintWidget.grab()
         image = QImage(screen)
-        # painter = QPainter(image)
         image.save("capture.png")
-
-        # painter.end()
         self.openImage('capture.png')
 
     def reloadListUI(self, searchText):
-        load_data_file(file_names, image_locations, quantities)
+        self.setCursor(Qt.BusyCursor)
+        load_data_file(file_names, image_locations, quantities, description)
         self.txtBoxList.clear()
         for i, j in enumerate(file_names):
             if (searchText != ''and searchText.lower() in j.lower() or searchText == ''):
-                self.label = QLabel(j)
+                self.label = QLabel(' ' + j)
                 self.label.setObjectName('Name')
+                self.label.setFixedSize(256,60)
                 # label.setFixedSize(128,20)
 
                 self.textBoxInput = QLineEdit("1")
@@ -311,31 +320,41 @@ class mainwindowUI(QMainWindow):
                 self.textBoxInput.setAlignment(QtCore.Qt.AlignCenter)
                 self.textBoxInput.setValidator(QIntValidator())
                 self.textBoxInput.setText(str(quantities[i]))
-                self.textBoxInput.editingFinished.connect(partial(self.saveLineEdit, self.textBoxInput, i))
+                self.textBoxInput.editingFinished.connect(partial(self.saveLineEdit, self.textBoxInput, i, True))
                 self.textBoxInput.setFocusPolicy(Qt.StrongFocus)
+                self.textBoxInput.setFixedSize(100, 80)
                 self.txtBoxList.append(self.textBoxInput)
-                self.textBoxInput.setFixedSize(70, 50)
 
-                self.btnImage = ImageButton()
+                self.textBoxDescription = TextEdit(self)
+                self.textBoxDescription.setAlignment(QtCore.Qt.AlignCenter)
+                self.textBoxDescription.setText(str(description[i]))
+                self.textBoxDescription.editingFinished.connect(
+                    partial(self.saveLineEdit, self.textBoxDescription, i, False))
+                self.textBoxDescription.setFocusPolicy(Qt.StrongFocus)
+                self.textBoxDescription.setPlaceholderText('Enter notes here...')
+
+                self.btnImage = QPushButton()
+                self.btnImage.setObjectName('btnImage')
                 self.btnImage.clicked.connect(partial(self.openImage, os.path.dirname(os.path.abspath(__file__)) + image_locations[i]))
                 self.btnImage.setIcon(QIcon(os.path.dirname(os.path.abspath(__file__)) + image_locations[i]))
-                self.btnImage.setIconSize(QSize(508, 124))
-                self.btnImage.setFixedSize(512, 128)
+                self.btnImage.setIconSize(QSize(1024-6, 300-6))
+                self.btnImage.setFixedSize(1024, 300)
                 self.btnImage.setFlat(True)
                 self.btnImage.setToolTip(os.path.dirname(os.path.abspath(__file__)) + image_locations[i])
-                self.btnImage.setStyleSheet("QPushButton{background-color: #FFFFFF; border-radius: 4px; border-style: none; border: 2px solid black;}")
 
                 self.btnDelete = QPushButton()
                 self.btnDelete.setFlat(True)
                 self.btnDelete.setToolTip('Will delete: ' + os.path.dirname(os.path.abspath(__file__)) + image_locations[i] + ' and all of the saved data.')
-                self.btnDelete.setFixedSize(128, 128)
+                self.btnDelete.setFixedSize(32, 32)
                 self.btnDelete.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton')))
                 self.btnDelete.clicked.connect(partial(self.delete, image_locations[i]))
 
                 self.gridLayoutItems.addWidget(self.label, i, 0, Qt.AlignCenter)
-                self.gridLayoutItems.addWidget(self.textBoxInput, i, 1, Qt.AlignCenter)
-                self.gridLayoutItems.addWidget(self.btnImage, i, 2, Qt.AlignCenter)
-                self.gridLayoutItems.addWidget(self.btnDelete, i, 3, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.textBoxDescription, i, 1, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.textBoxInput, i, 2, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.btnImage, i, 3, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.btnDelete, i, 4, Qt.AlignCenter)
+                self.gridLayoutItems.addWidget(self.btnDelete, i, 5, Qt.AlignRight)
 
                 # loop = QEventLoop()
                 # QTimer.singleShot(10, loop.quit)
@@ -356,32 +375,57 @@ class mainwindowUI(QMainWindow):
             # label.setFixedSize(128,20)
             self.gridLayoutItems.addWidget(label, 0, 0)
 
+
+        self.unsetCursor()
         # time.sleep(0.5)
         # if self.txtBoxList: self.txtBoxList[self.lastTextBoxInFucos].setFocus()
 
         # print(self.lastTextBoxInFucos)
         # self.gridLayoutItems.setColumnStretch(3,0)
 
-    def saveLineEdit(self, textBox, index):
-        self.newQuantity = textBox.text()
-        if '.' in self.newQuantity:
-            QMessageBox.critical(self, 'Must be an integer.', "Must be a whole number.\n\nNo decimal places", QMessageBox.Ok, QMessageBox.Ok)
-            return
-        elif self.newQuantity in ['', quantities[index]]: return
-        temp_path = image_locations[index]
-        temp_name = file_names[index]
-        Data_JSON_Contents.pop(index)
-        Data_JSON_Contents.append({
-        'fileName': [temp_name],
-        'imgLoc': [temp_path],
-        'quantity':[int(self.newQuantity)]
-        })
+    def saveLineEdit(self, textBox, index, isInt):
+        self.setCursor(Qt.BusyCursor)
+        t = threading.Thread(target=self.saveLineEditThreading,
+                   args=('isdone', textBox, index, isInt,))
+        t.start()
+        t.join()
+        if self.returns['isdone'] == 'True':
+            self.lastTextBoxInFucos = index
+            self.clearLayout(self.gridLayoutItems)
+            self.reloadListUI(self.txtSearch.text())
+            self.unsetCursor()
+
+    def saveLineEditThreading(self, bar, textBox, index, isInt):
+        if isInt:
+            self.newQuantity = textBox.text()
+            if '.' in self.newQuantity:
+                QMessageBox.critical(self, 'Must be an integer.', "Must be a whole number.\n\nNo decimal places", QMessageBox.Ok, QMessageBox.Ok)
+                return
+            elif self.newQuantity in ['', quantities[index]]: return
+            Data_JSON_Contents.pop(index)
+            Data_JSON_Contents.append({
+                'fileName': [file_names[index]],
+                'imgLoc': [image_locations[index]],
+                'quantity':[int(self.newQuantity)],
+                'description': [description[index]]
+            })
+            sortedList = sorted(Data_JSON_Contents,
+                                key=lambda i: i['fileName'])
+            with open(Data_JSON, mode='w+', encoding='utf-8') as file:
+                json.dump(sortedList, file, ensure_ascii=True,
+                          indent=4, sort_keys=True)
+        else:
+            Data_JSON_Contents.pop(index)
+            Data_JSON_Contents.append({
+                'fileName': [file_names[index]],
+                'imgLoc': [image_locations[index]],
+                'quantity': [int(quantities[index])],
+                'description': [textBox.toPlainText()]
+            })
         # save data to JSON file
-        sortedList = sorted(Data_JSON_Contents, key=lambda i: i['fileName'])
-        with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
-        self.lastTextBoxInFucos = index
-        self.clearLayout(self.gridLayoutItems)
-        self.reloadListUI(self.txtSearch.text())
+            sortedList = sorted(Data_JSON_Contents, key=lambda i: i['fileName'])
+            with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
+        self.returns[bar] = 'True'
 
     def search(self):
         text = self.txtSearch.text()
@@ -389,15 +433,18 @@ class mainwindowUI(QMainWindow):
         self.reloadListUI(text)
 
     def save(self):
+        self.setCursor(Qt.BusyCursor)
         Data_JSON_Contents.clear()
         for i, j in enumerate(file_names):
             Data_JSON_Contents.append({
-            'fileName': [j],
-            'imgLoc': [image_locations[i]],
-            'quantity':[int(quantities[i])]
+                'fileName': [j],
+                'imgLoc': [image_locations[i]],
+                'quantity': [int(quantities[i])],
+                'description': [description[i]]
             })
         sortedList = sorted(Data_JSON_Contents, key=lambda i: i['fileName'])
         with open(Data_JSON, mode='w+', encoding='utf-8') as file: json.dump(sortedList, file, ensure_ascii=True, indent=4, sort_keys=True)
+        self.unsetCursor()
 
     def center(self):
         frameGm = self.frameGeometry()
@@ -406,18 +453,182 @@ class mainwindowUI(QMainWindow):
         frameGm.moveCenter(centerPoint)
         self.move(frameGm.topLeft())
 
+class TextEdit(QTextEdit):
+    """
+    A TextEdit editor that sends editingFinished events
+    when the text was changed and focus is lost.
+    """
 
-class ImageButton(QPushButton):
-    def __init__(self, parent=None):
-        super(ImageButton, self).__init__(parent)
-        self.setMouseTracking(True)
+    editingFinished = QtCore.pyqtSignal()
+    receivedFocus = QtCore.pyqtSignal()
 
-    def enterEvent(self,event):
-        self.setStyleSheet("QPushButton{background-color: #FFFFFF; border-radius: 4px; border-style: none; border: 2px solid lime;}")
+    def __init__(self, parent):
+        super(TextEdit, self).__init__(parent)
+        self._changed = False
+        self.setTabChangesFocus( True )
+        self.textChanged.connect( self._handle_text_changed )
 
-    def leaveEvent(self,event):
-        self.setStyleSheet("QPushButton{background-color: #FFFFFF; border-radius: 4px; border-style: none; border: 2px solid black;}")
+    def focusInEvent(self, event):
+        super(TextEdit, self).focusInEvent( event )
+        self.receivedFocus.emit()
 
+    def focusOutEvent(self, event):
+        if self._changed:
+            self.editingFinished.emit()
+        super(TextEdit, self).focusOutEvent( event )
+
+    def _handle_text_changed(self):
+        self._changed = True
+
+    def setTextChanged(self, state=True):
+        self._changed = state
+
+    def setHtml(self, html):
+        QtGui.QTextEdit.setHtml(self, html)
+        self._changed = False
+
+
+class QImageViewer(QMainWindow):
+    def __init__(self, directory_to_open):
+        super().__init__()
+
+        self.printer = QPrinter()
+        self.scaleFactor = 0.0
+
+        self.imageLabel = QLabel()
+        self.imageLabel.setBackgroundRole(QPalette.Base)
+        self.imageLabel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.imageLabel.setScaledContents(True)
+
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setBackgroundRole(QPalette.Dark)
+        self.scrollArea.setWidget(self.imageLabel)
+        self.scrollArea.setVisible(False)
+
+        self.setCentralWidget(self.scrollArea)
+
+        self.createActions()
+        self.createMenus()
+
+        self.setWindowTitle("Image Viewer")
+        self.resize(800, 600)
+
+        self.imageLabel.setPixmap(QPixmap(directory_to_open))
+        self.scaleFactor = 1.0
+
+        self.scrollArea.setVisible(True)
+        self.printAct.setEnabled(True)
+        self.fitToWindowAct.setEnabled(True)
+        self.updateActions()
+
+        if not self.fitToWindowAct.isChecked():
+            self.imageLabel.adjustSize()
+
+    def print_(self):
+        dialog = QPrintDialog(self.printer, self)
+        if dialog.exec_():
+            painter = QPainter(self.printer)
+            rect = painter.viewport()
+            size = self.imageLabel.pixmap().size()
+            size.scale(rect.size(), Qt.KeepAspectRatio)
+            painter.setViewport(rect.x(), rect.y(),
+                                size.width(), size.height())
+            painter.setWindow(self.imageLabel.pixmap().rect())
+            painter.drawPixmap(0, 0, self.imageLabel.pixmap())
+
+    def zoomIn(self):
+        self.scaleImage(1.25)
+
+    def zoomOut(self):
+        self.scaleImage(0.8)
+
+    def normalSize(self):
+        self.imageLabel.adjustSize()
+        self.scaleFactor = 1.0
+
+    def fitToWindow(self):
+        fitToWindow = self.fitToWindowAct.isChecked()
+        self.scrollArea.setWidgetResizable(fitToWindow)
+        if not fitToWindow:
+            self.normalSize()
+
+        self.updateActions()
+
+    def about(self):
+        QMessageBox.about(self, "About Image Viewer",
+                          "<p>The <b>Image Viewer</b> example shows how to combine "
+                          "QLabel and QScrollArea to display an image. QLabel is "
+                          "typically used for displaying text, but it can also display "
+                          "an image. QScrollArea provides a scrolling view around "
+                          "another widget. If the child widget exceeds the size of the "
+                          "frame, QScrollArea automatically provides scroll bars.</p>"
+                          "<p>The example demonstrates how QLabel's ability to scale "
+                          "its contents (QLabel.scaledContents), and QScrollArea's "
+                          "ability to automatically resize its contents "
+                          "(QScrollArea.widgetResizable), can be used to implement "
+                          "zooming and scaling features.</p>"
+                          "<p>In addition the example shows how to use QPainter to "
+                          "print an image.</p>")
+
+    def createActions(self):
+        # self.openAct = QAction(
+        #     "&Open...", self, shortcut="Ctrl+O", triggered=self.open)
+        self.printAct = QAction(
+            "&Print...", self, shortcut="Ctrl+P", enabled=False, triggered=self.print_)
+        self.exitAct = QAction(
+            "E&xit", self, shortcut="Ctrl+Q", triggered=self.close)
+        self.zoomInAct = QAction(
+            "Zoom &In (25%)", self, shortcut="Ctrl++", enabled=False, triggered=self.zoomIn)
+        self.zoomOutAct = QAction(
+            "Zoom &Out (25%)", self, shortcut="Ctrl+-", enabled=False, triggered=self.zoomOut)
+        self.normalSizeAct = QAction(
+            "&Normal Size", self, shortcut="Ctrl+S", enabled=False, triggered=self.normalSize)
+        self.fitToWindowAct = QAction("&Fit to Window", self, enabled=False, checkable=True, shortcut="Ctrl+F",
+                                      triggered=self.fitToWindow)
+        self.aboutAct = QAction("&About", self, triggered=self.about)
+        self.aboutQtAct = QAction("About &Qt", self, triggered=qApp.aboutQt)
+
+    def createMenus(self):
+        self.fileMenu = QMenu("&File", self)
+        # self.fileMenu.addAction(self.openAct)
+        self.fileMenu.addAction(self.printAct)
+        self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.exitAct)
+
+        self.viewMenu = QMenu("&View", self)
+        self.viewMenu.addAction(self.zoomInAct)
+        self.viewMenu.addAction(self.zoomOutAct)
+        self.viewMenu.addAction(self.normalSizeAct)
+        self.viewMenu.addSeparator()
+        self.viewMenu.addAction(self.fitToWindowAct)
+
+        self.helpMenu = QMenu("&Help", self)
+        self.helpMenu.addAction(self.aboutAct)
+        self.helpMenu.addAction(self.aboutQtAct)
+
+        self.menuBar().addMenu(self.fileMenu)
+        self.menuBar().addMenu(self.viewMenu)
+        self.menuBar().addMenu(self.helpMenu)
+
+    def updateActions(self):
+        self.zoomInAct.setEnabled(not self.fitToWindowAct.isChecked())
+        self.zoomOutAct.setEnabled(not self.fitToWindowAct.isChecked())
+        self.normalSizeAct.setEnabled(not self.fitToWindowAct.isChecked())
+
+    def scaleImage(self, factor):
+        self.scaleFactor *= factor
+        self.imageLabel.resize(
+            self.scaleFactor * self.imageLabel.pixmap().size())
+
+        self.adjustScrollBar(self.scrollArea.horizontalScrollBar(), factor)
+        self.adjustScrollBar(self.scrollArea.verticalScrollBar(), factor)
+
+        self.zoomInAct.setEnabled(self.scaleFactor < 3.0)
+        self.zoomOutAct.setEnabled(self.scaleFactor > 0.333)
+
+    def adjustScrollBar(self, scrollBar, factor):
+        scrollBar.setValue(int(factor * scrollBar.value()
+                               + ((factor - 1) * scrollBar.pageStep() / 2)))
 
 class view_image(QMainWindow):
 
@@ -614,16 +825,18 @@ def load_data_file(*args):
             for name in info['fileName']: file_names.append(name)
             for path in info['imgLoc']: image_locations.append(path)
             for quan in info['quantity']: quantities.append(quan)
+            for disc in info['description']:
+                description.append(disc)
 
 
 if __name__ == '__main__':
-    # if images directory doesnt exist we create it
+    # if images directory doesn't exist we create it
     if not os.path.exists('Images'): os.makedirs('Images')
     # if data.json file doesn't exist, we create it
     if not os.path.isfile(Data_JSON):
         with open(Data_JSON, 'w+') as f: f.write("[]")
     # Load data file
-    load_data_file(file_names, image_locations, quantities)
+    load_data_file(file_names, image_locations, quantities, description)
     # start GUI
     app = QApplication(sys.argv)
     window = mainwindowUI()
