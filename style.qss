@@ -1,18 +1,66 @@
-/* 
+/*
 https://doc.qt.io/qt-5/stylesheet-examples.html
 */
+QGroupBox {
+   color: black;
+    border: 1px solid white;
+    border-radius: 4px;
+    margin-top: 4ex; /* leave space at the top for the title */
+   background-color: rgb(255, 255, 255);
+   /* border: 1px solid white;
+   border-radius: 4px; */
+}
+
+QGroupBox#Batch:title {
+   color: black;
+   /* background-color: rgb(255, 255, 255); */
+   subcontrol-origin: margin;
+   subcontrol-position: top center;
+   font:30px;
+}
+QGroupBox#Batch {
+   color: black;
+    border: 1px solid gray;
+    border-radius: 4px;
+    margin-top: 4ex; /* leave space at the top for the title */
+   color: rgb(255, 255, 255);
+   /* border-radius: 4px; */
+   /* border: 1px solid gray; */
+}
+QCheckBox#checkbox:indicator
+{
+width : 40px;
+height : 40px;
+}
 QLabel#Name {
-   font:35px;
+   text-align: left;
+   font:30px;
 }
-QPushButton#btnAdd{
+QPushButton#btnImage {
+   background-color: rgb(255, 255, 255);
+   border-radius: 4px;
+   border-style: none;
+   border: 1px solid white;
 }
-QPushButton#btnAdd:pressed{
+QPushButton#btnImage:hover {
+   background-color: rgb(255, 255, 255);
+   border-radius: 4px;
+   border-style: none;
+   border: 1px solid lime;
 }
-QPushButton#btnAdd:hover{
-}
-QLineEdit#Quantity{
+QLineEdit#Quantity {
    font:30px
 }
-QProgressBar{
-   text-align: left; 
+QLineEdit#ShipTo {
+   font:20px
+}
+QLineEdit#Combo {
+   font:30px
+}
+QLineEdit#Search {
+   padding-left: 28px;
+}
+QProgressBar {
+   color: black;
+   text-align: left;
 }
