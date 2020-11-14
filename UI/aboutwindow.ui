@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>343</width>
-    <height>158</height>
+    <width>370</width>
+    <height>163</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,34 +35,15 @@
           </font>
          </property>
          <property name="text">
-          <string>DXF to PNG Converter 1.0.0</string>
+          <string>About DXF to PNG 1.0.3</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QScrollArea" name="scrollArea">
-         <property name="widgetResizable">
-          <bool>true</bool>
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string/>
          </property>
-         <widget class="QWidget" name="scrollAreaWidgetContents">
-          <property name="geometry">
-           <rect>
-            <x>0</x>
-            <y>0</y>
-            <width>255</width>
-            <height>66</height>
-           </rect>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_2">
-           <item>
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
         </widget>
        </item>
        <item>
