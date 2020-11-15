@@ -91,6 +91,9 @@
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Maximum</enum>
+        </property>
         <property name="sizeHint" stdset="0">
          <size>
           <width>40</width>
@@ -100,19 +103,48 @@
        </spacer>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_4">
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <item>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
            <string>View:</string>
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QComboBox" name="batchToView"/>
+        <item row="1" column="0">
+         <widget class="QComboBox" name="batchToView">
+          <property name="maximumSize">
+           <size>
+            <width>300</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QPushButton" name="btnCreateBatch">
+            <property name="text">
+             <string>Create Batch</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnDeleteBatch">
+            <property name="text">
+             <string>Delete Batch</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
@@ -151,7 +183,7 @@
            <x>0</x>
            <y>0</y>
            <width>513</width>
-           <height>301</height>
+           <height>208</height>
           </rect>
          </property>
          <layout class="QGridLayout" name="gridLayout">
@@ -244,7 +276,7 @@
      <x>0</x>
      <y>0</y>
      <width>585</width>
-     <height>20</height>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
