@@ -757,8 +757,8 @@ class mainwindowUI(QMainWindow):
         if len(self.batches_to_load) == 0:
             self.batches_to_load.append(NON_BATCHES[0])
 
-        self.btnPrint.setHidden(False if not self.batchToView.currentText() in [
-                                'Everything', 'All Batches'] else True)
+        self.btnPrint.setHidden(self.batchToView.currentText() in [
+                                'Everything', 'All Batches'])
 
         # self.btnPrint.setHidden(True)
         for index, name in enumerate(['             Name:', 'Description:', 'Material:', 'Quantity:', 'Image:', 'Checkmark:']):
@@ -768,7 +768,6 @@ class mainwindowUI(QMainWindow):
         batch_group_box_GUI.clear()
         batch_vbox_GUI = []
         batch_lengths = []
-        length_of_batches = []
         orginized_length_of_batches = {}
         orginized_file_names = {}
         self.all_batch_checkboxes.clear()
@@ -822,9 +821,11 @@ class mainwindowUI(QMainWindow):
             for i, _ in enumerate(orginized_file_names[name_batch]):
                 if (self.txtSearch.text() != '' and self.txtSearch.text().lower() in orginized_file_names[name_batch][i].lower()):
                     orginized_length_of_batches[name_batch][0] += 1
-        for _, name_batch in enumerate(self.batches_to_load):
-            length_of_batches.append(
-                orginized_length_of_batches[name_batch][0])
+        length_of_batches = [
+            orginized_length_of_batches[name_batch][0]
+            for _, name_batch in enumerate(self.batches_to_load)
+        ]
+
         if len(self.batches_to_load) > 1 and any(x != batch_lengths[0] for x in batch_lengths):
             temp_amount_of_zeros_found = 0
             for index, number in enumerate(batch_lengths):
@@ -858,8 +859,8 @@ class mainwindowUI(QMainWindow):
             i = next(self._iter) if INTERVAL_LOAD else 0
         except StopIteration:
             # self.actionPrint.setEnabled(True)
-            self.actionPrint.setEnabled(True if not self.batchToView.currentText() in [
-                'Everything', 'All Batches'] else False)
+            self.actionPrint.setEnabled(self.batchToView.currentText() not in [
+                'Everything', 'All Batches'])
             self.btnPrint.setEnabled(True)
             self._timer.stop()
             self.unsetCursor()
@@ -1269,16 +1270,14 @@ class mainwindowUI(QMainWindow):
     def saveLineEdit(self, textBox, index, isInt, BATCH):
         # return
         self.setCursor(Qt.BusyCursor)
-        if isInt == 'Int':
-            text = textBox.text()
-        elif isInt == 'Str':
-            text = textBox.toPlainText()
-        elif isInt == 'Chk':
+        if isInt == 'Chk':
             text = textBox.isChecked()
         elif isInt == 'Combo':
             text = textBox.currentText()
-        elif isInt == 'ComboEdit':
+        elif isInt in ['Int', 'ComboEdit']:
             text = textBox.text()
+        elif isInt == 'Str':
+            text = textBox.toPlainText()
         t = threading.Thread(target=self.saveLineEditThreading, args=(
             'isdone', text, index, isInt, BATCH))
         t.start()
