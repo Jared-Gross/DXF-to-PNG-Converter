@@ -133,14 +133,14 @@
           <item>
            <widget class="QPushButton" name="btnCreateBatch">
             <property name="text">
-             <string>Create Batch</string>
+             <string>Create Group</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="btnDeleteBatch">
             <property name="text">
-             <string>Delete Batch</string>
+             <string>Delete Group</string>
             </property>
            </widget>
           </item>
@@ -183,7 +183,7 @@
            <x>0</x>
            <y>0</y>
            <width>513</width>
-           <height>208</height>
+           <height>251</height>
           </rect>
          </property>
          <layout class="QGridLayout" name="gridLayout">
@@ -276,7 +276,7 @@
      <x>0</x>
      <y>0</y>
      <width>585</width>
-     <height>29</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -285,6 +285,12 @@
     </property>
     <addaction name="action_Add"/>
     <addaction name="actionPrint"/>
+    <addaction name="separator"/>
+    <addaction name="actionCreate_Batch"/>
+    <addaction name="actionRename_Batch"/>
+    <addaction name="actionDelete_Batch"/>
+    <addaction name="separator"/>
+    <addaction name="actionSave_As"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -314,7 +320,7 @@
   </action>
   <action name="action_Add">
    <property name="text">
-    <string>&amp;Add</string>
+    <string>&amp;Add Files</string>
    </property>
   </action>
   <action name="action_Save">
@@ -335,6 +341,26 @@
   <action name="actionAbout_3">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionCreate_Batch">
+   <property name="text">
+    <string>&amp;Create Batch</string>
+   </property>
+  </action>
+  <action name="actionRename_Batch">
+   <property name="text">
+    <string>&amp;Rename Batch</string>
+   </property>
+  </action>
+  <action name="actionDelete_Batch">
+   <property name="text">
+    <string>&amp;Delete Batch</string>
+   </property>
+  </action>
+  <action name="actionSave_As">
+   <property name="text">
+    <string>&amp;Save As</string>
    </property>
   </action>
  </widget>
