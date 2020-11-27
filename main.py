@@ -9,6 +9,8 @@ import imutils
 import threading
 import threading
 import subprocess
+from zipfile import ZipFile 
+import zipfile
 import matplotlib.pyplot as plt
 from PyQt5 import *
 from PIL import Image
@@ -32,7 +34,7 @@ try:
     file = open(SETTINGS_FILE, 'r')
 except FileNotFoundError:
     with open(SETTINGS_FILE, 'w') as file:
-        file.write('Batch #1.json')
+        file.write('Batch.json')
 with open(SETTINGS_FILE, 'r') as f:
     Data_JSON = 'Batches/' + f.read()
 
@@ -57,7 +59,7 @@ company = 'TheCodingJs'
 title = 'DXF to PNG'
 version = 'v1.0.3'
 
-latest_update_date = datetime(2020, 11, 15, 11, 41, 23)
+latest_update_date = datetime(2020, 11, 27, 2, 21, 6)
 latest_update_date_formated = latest_update_date.strftime(
     "%A %B %d %Y at %X%p")
 
@@ -292,6 +294,7 @@ class mainwindowUI(QMainWindow):
         self.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "/icon.png"))
         self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+        self.txtCurrentViewingBatch.setText(self.title_json)
         self.setWindowTitle(f'{title} - {version} - {self.title_json}')
 
         self.setAcceptDrops(True)
@@ -405,14 +408,19 @@ class mainwindowUI(QMainWindow):
 
         self.actionLoadBatch = self.findChild(QMenu, 'menu_Load_Batch')
         self.actionLoadBatch.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_DirOpenIcon')))
+            getattr(QStyle, 'SP_DirLinkIcon')))
         self.reload_batch_load_view()
         # self.actionLoadBatch.triggered.connect(self.Load_Saved_batch_files)
 
         self.actionSaveAs = self.findChild(QAction, 'action_Save_As')
         self.actionSaveAs.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_DriveFDIcon')))
+        self.actionSaveAs.triggered.connect(partial(self.Save_batch_as, ''))
 
+        self.actionBackup_All_Files = self.findChild(QAction, 'actionBackup_All_Files')
+        self.actionBackup_All_Files.setIcon(QIcon('zip.png'))
+        self.actionBackup_All_Files.triggered.connect(generate_backup)
+        
         self.actionAbout_3.triggered.connect(self.open_about_window)
         self.actionAbout_3.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_MessageBoxQuestion')))
@@ -528,8 +536,10 @@ class mainwindowUI(QMainWindow):
                     clear_batches()
                     load_batch(file_names, image_locations, quantities, description, checkmarked,
                                 materials, batch_name_list, batch_index_val, BATCH=j)
-                    for file_name in image_locations:
-                        os.remove(os.path.dirname(os.path.abspath(__file__)) + file_name)
+                    try:
+                        for file_name in image_locations:
+                            os.remove(os.path.dirname(os.path.abspath(__file__)) + file_name)
+                    except FileNotFoundError: pass
                     Data_JSON_Contents[0].pop(text)
                     with open(Data_JSON, mode='w+', encoding='utf-8') as file:
                         json.dump(Data_JSON_Contents, file,
@@ -665,7 +675,8 @@ class mainwindowUI(QMainWindow):
         # sort_data(batch)
         # self.clearLayout(layout)
         # line.deleteLater()
-        os.remove(os.path.dirname(os.path.abspath(__file__)) + image_locations[index])
+        try: os.remove(os.path.dirname(os.path.abspath(__file__)) + image_locations[index])
+        except FileNotFoundError: pass
         # clear_batches()
         # for index_of_batch, batch_name in enumerate(self.batches_to_load):
         #     load_batch(file_names, image_locations, quantities, description, checkmarked,
@@ -759,6 +770,28 @@ class mainwindowUI(QMainWindow):
         # self.batchToView.setItemIcon(len(
         #     BATCHES) + 6, QIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton'))))
 
+    def Save_batch_as(self, string = ''):
+        global SAVED_DATA_JSON_FILES
+        fileName, _ = QFileDialog.getSaveFileName(self,"Save Batch File", os.path.dirname(os.path.abspath(__file__)) + '/Batches',"JSON Files (*.json)")
+        if fileName:
+            if not os.path.isfile(fileName):
+                if not fileName.endswith('.json'):
+                    fileName += '.json'
+                try:
+                    shutil.copy(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, fileName, follow_symlinks=True)
+                except PermissionError:
+                    with open(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, 'rb') as src, open(fileName, 'wb') as dst: dst.write(src.read())
+                except:
+                    QMessageBox.critical(self, 'Permission denied', "Permission denied.\n\nTry running the program in Administrator mode.", QMessageBox.Ok, QMessageBox.Ok)
+                    return
+            # else:
+            #     text = fileName.split("/")[-1].split(".")[0]
+            #     buttonReply = QMessageBox.question(self, 'File already Exists', f"{text} already exists.\n\nWould you like to try again?", QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No)
+            #     if buttonReply == QMessageBox.Yes: self.Save_batch_as(text)
+            #     return
+        SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+        self.reload_batch_load_view()
+
     def Create_saved_batch_file(self, string=""):
         global SAVED_DATA_JSON_FILES
         text, okPressed = QInputDialog.getText(
@@ -769,7 +802,7 @@ class mainwindowUI(QMainWindow):
                 with open('Batches/' + text, 'w+') as file: file.write('[{"NON_BATCH":[]}]')
             else:
                 text.replace('.json', '')
-                buttonReply = QMessageBox.question(self, 'File already Exists', f"{text} already exists.\n\nWould you like to retry?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                buttonReply = QMessageBox.question(self, 'File already Exists', f"{text} already exists.\n\nWould you like to try again?", QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No)
                 if buttonReply == QMessageBox.Yes: self.Create_saved_batch_file(text)
                 return
             SAVED_DATA_JSON_FILES = os.listdir('Batches/')
@@ -807,7 +840,7 @@ class mainwindowUI(QMainWindow):
             except IndexError:
                 with open('Batches/Batch #1.json', 'w+') as f:
                     f.write('[{"NON_BATCH":[]}]')
-                    Data_JSON = 'Batches/Batch #1.json'
+                    Data_JSON = 'Batches/Batch.json'
             save = Data_JSON.replace('Batches/', '')
             with open(SETTINGS_FILE, 'w+') as file: file.write(save)
             SAVED_DATA_JSON_FILES = os.listdir('Batches/')
@@ -816,20 +849,22 @@ class mainwindowUI(QMainWindow):
             self.reload_batch_load_view()
             self.reload_batch_view()
             self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+            self.txtCurrentViewingBatch.setText(self.title_json)
             self.setWindowTitle(f'{title} - {version} - {self.title_json}')
+    
     def reload_batch_load_view(self):
         self.actionLoadBatch.clear()
         for saved_batch_name in SAVED_DATA_JSON_FILES:
-            saved_batch_name.replace('.json', '')
+            saved_batch_name = saved_batch_name.replace('.json', '')
             action_load = QAction(saved_batch_name, self)
             action_load.setIcon(self.style().standardIcon(
-                getattr(QStyle, 'SP_FileIcon')))
+                getattr(QStyle, 'SP_FileLinkIcon')))
             action_load.triggered.connect(partial(self.Load_saved_batch, saved_batch_name))
             self.actionLoadBatch.addAction(action_load)
 
     def Load_saved_batch(self, batch_name):
         global Data_JSON
-        Data_JSON = 'Batches/' + batch_name
+        Data_JSON = 'Batches/' + batch_name + '.json'
         BATCHES.clear()
         self.reload_batch_view()
         self.reload_auto_complete()
@@ -837,6 +872,7 @@ class mainwindowUI(QMainWindow):
         with open(SETTINGS_FILE, 'w+') as file: file.write(save)
         self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
         self.setWindowTitle(f'{title} - {version} - {self.title_json}')
+        self.txtCurrentViewingBatch.setText(self.title_json)
 
     def reload_auto_complete(self):
         clear_batches()
@@ -1410,7 +1446,7 @@ class mainwindowUI(QMainWindow):
         new_name = text
         for existing_file_names in file_names:
             if new_name == existing_file_names:
-                button = QMessageBox.information(self, 'That file already exist.', f'That file already exists.\nWould you like to retry?',
+                button = QMessageBox.information(self, 'That file already exist.', f'That file already exists.\nWould you like to try again?',
                                                  QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)
                 if button == QMessageBox.Yes:
                     self.rename_part(BATCH, new_name, index)
@@ -1982,6 +2018,26 @@ def load_batch(*args, BATCH):
         except Exception as e:
             print(e)
 
+def get_all_file_paths(directory): 
+    file_paths = [] 
+    for root, directories, files in os.walk(directory): 
+        for filename in files:  
+            filepath = os.path.join(root, filename) 
+            file_paths.append(filepath) 
+  
+    # returning all file paths 
+    return file_paths         
+  
+def generate_backup(): 
+    generate_back_up_name = datetime.now().strftime("%A %B %d %Y")
+    directories = ['Images/', 'Batches/']
+    file_paths = []
+    for directory in directories:
+        file_paths += get_all_file_paths(directory) 
+    with ZipFile(f'Backups/Backup - {generate_back_up_name}.zip','w', compression=zipfile.ZIP_DEFLATED) as zip: 
+        for file in file_paths: 
+            zip.write(file) 
+        zip.write('settings.txt')
 
 if __name__ == '__main__':
     # if images directory doesn't exist we create it
@@ -1993,6 +2049,8 @@ if __name__ == '__main__':
         os.makedirs('Capture')
     if not os.path.exists('Batches'):
         os.makedirs('Batches')
+    if not os.path.exists('Backups'):
+        os.makedirs('Backups')
     # if data.json file doesn't exist, we create it
     if not os.path.isfile(Data_JSON):
         with open(Data_JSON, 'w+') as f:
