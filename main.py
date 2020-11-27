@@ -419,7 +419,7 @@ class mainwindowUI(QMainWindow):
 
         self.actionBackup_All_Files = self.findChild(QAction, 'actionBackup_All_Files')
         self.actionBackup_All_Files.setIcon(QIcon('zip.png'))
-        self.actionBackup_All_Files.triggered.connect(generate_backup)
+        self.actionBackup_All_Files.triggered.connect(self.generate_backup)
         
         self.actionAbout_3.triggered.connect(self.open_about_window)
         self.actionAbout_3.setIcon(self.style().standardIcon(
@@ -465,6 +465,26 @@ class mainwindowUI(QMainWindow):
         else:
             event.ignore()
 
+    def generate_backup(self): 
+        self.setCursor(Qt.BusyCursor)
+        t = threading.Thread(target=self.generate_backup_Thread, args=('isdone',))
+        t.start()
+        t.join()
+        if self.returns['isdone'] == 'True':
+            self.unsetCursor()
+            
+    def generate_backup_Thread(self, bar):
+        generate_back_up_name = datetime.now().strftime("%A %B %d %Y")
+        directories = ['Images/', 'Batches/']
+        file_paths = []
+        for directory in directories:
+            file_paths += get_all_file_paths(directory) 
+        with ZipFile(f'Backups/Backup - {generate_back_up_name}.zip','w', compression=zipfile.ZIP_DEFLATED) as zip: 
+            for file in file_paths: 
+                zip.write(file) 
+            zip.write('settings.txt')
+        self.returns[bar] = 'True'
+    
     def start_conversion(self, files, batchToAddTo):
         self.setCursor(Qt.BusyCursor)
         self.threads = []
@@ -2027,30 +2047,14 @@ def get_all_file_paths(directory):
   
     # returning all file paths 
     return file_paths         
-  
-def generate_backup(): 
-    generate_back_up_name = datetime.now().strftime("%A %B %d %Y")
-    directories = ['Images/', 'Batches/']
-    file_paths = []
-    for directory in directories:
-        file_paths += get_all_file_paths(directory) 
-    with ZipFile(f'Backups/Backup - {generate_back_up_name}.zip','w', compression=zipfile.ZIP_DEFLATED) as zip: 
-        for file in file_paths: 
-            zip.write(file) 
-        zip.write('settings.txt')
 
 if __name__ == '__main__':
     # if images directory doesn't exist we create it
-    if not os.path.exists('Images'):
-        os.makedirs('Images')
-    if not os.path.exists('Print'):
-        os.makedirs('Print')
-    if not os.path.exists('Capture'):
-        os.makedirs('Capture')
-    if not os.path.exists('Batches'):
-        os.makedirs('Batches')
-    if not os.path.exists('Backups'):
-        os.makedirs('Backups')
+    if not os.path.exists('Images'): os.makedirs('Images')
+    if not os.path.exists('Print'): os.makedirs('Print')
+    if not os.path.exists('Capture'): os.makedirs('Capture')
+    if not os.path.exists('Batches'): os.makedirs('Batches')
+    if not os.path.exists('Backups'): os.makedirs('Backups')
     # if data.json file doesn't exist, we create it
     if not os.path.isfile(Data_JSON):
         with open(Data_JSON, 'w+') as f:
