@@ -37,7 +37,7 @@ with open(SETTINGS_FILE, 'r') as f:
     Data_JSON = 'Batches/' + f.read()
 
 Data_JSON_Contents = []
-SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+
 
 BATCHES = []
 NON_BATCHES = ['NON_BATCH']
@@ -73,17 +73,21 @@ class ConvertThread(QThread):
         self.default_img_res = 300
 
     def run(self):
+        print(self.file)
         with open(Data_JSON) as file:
             Data_JSON_Contents = json.load(file)
         for i, j in enumerate(self.file):
             dxffilepath = j
-            _, file_extension = os.path.splitext(j)
-            temp_fileName = j.split("/")[-1].split(".")[0]
+            file_name, file_extension = os.path.splitext(j)
+            file_name = file_name.replace('.','-')
+            temp_fileName = file_name.split("/")[-1].split(".")[0]
+            print(temp_fileName)
             path = os.path.dirname(os.path.abspath(
                 __file__)) + '/Images/' + temp_fileName + '.png'.replace('\\', '/')
             path = path.split('/')
             path[0] = path[0].capitalize()
             path = '/'.join(path)
+            print(path)
             clear_batches()
             load_batch(file_names, image_locations, quantities, description, checkmarked,
                        materials, batch_name_list, batch_index_val, BATCH=self.selected_batch_name)
@@ -287,7 +291,8 @@ class mainwindowUI(QMainWindow):
         self.setMinimumSize(930, 500)
         self.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "/icon.png"))
-        self.setWindowTitle(f'{title} - {version}')
+        self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+        self.setWindowTitle(f'{title} - {version} - {self.title_json}')
 
         self.setAcceptDrops(True)
         self.resized.connect(self.getSize)
@@ -390,7 +395,7 @@ class mainwindowUI(QMainWindow):
         self.actionCreateBatch = self.findChild(QAction, 'actionCreate_Batch_2')
         self.actionCreateBatch.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_FileDialogNewFolder')))
-        self.actionCreateBatch.triggered.connect(self.Create_saved_batch_file)
+        self.actionCreateBatch.triggered.connect(partial(self.Create_saved_batch_file, ''))
 
         self.actionDeleteBatch = self.findChild(
             QAction, 'actionDelete_Batch_2')
@@ -727,6 +732,7 @@ class mainwindowUI(QMainWindow):
         self.start_image_conversion()
 
     def reload_batch_view(self):
+        global BATCHES
         load_batches(BATCHES)
         del BATCHES[-1]
         self.batchToView.clear()
@@ -753,13 +759,66 @@ class mainwindowUI(QMainWindow):
         # self.batchToView.setItemIcon(len(
         #     BATCHES) + 6, QIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton'))))
 
-    def Create_saved_batch_file(self):
-        pass
-
+    def Create_saved_batch_file(self, string=""):
+        global SAVED_DATA_JSON_FILES
+        text, okPressed = QInputDialog.getText(
+            self, "Name", "Enter New Batch name:", QLineEdit.Normal, string)
+        if okPressed and text != '':
+            if not text.endswith('.json'): text += '.json'
+            if not os.path.isfile("Batches/" + text):
+                with open('Batches/' + text, 'w+') as file: file.write('[{"NON_BATCH":[]}]')
+            else:
+                text.replace('.json', '')
+                buttonReply = QMessageBox.question(self, 'File already Exists', f"{text} already exists.\n\nWould you like to retry?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if buttonReply == QMessageBox.Yes: self.Create_saved_batch_file(text)
+                return
+            SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+            self.reload_batch_load_view()
+            
     def Delete_saved_batch_files(self):
-        pass
-
+        global BATCHES, Data_JSON, SAVED_DATA_JSON_FILES
+        current_open_batch = Data_JSON
+        view = SAVED_DATA_JSON_FILES
+        [v.replace('.json', '') for v in view]
+        text, okPressed = QInputDialog().getItem(
+            self, "Select one to delete.", "Saved Batches:", view, 0, False)
+        if okPressed:
+            for _, j in enumerate(SAVED_DATA_JSON_FILES):
+                if text == j:
+                    Data_JSON = 'Batches/' + text
+                    BATCHES.clear()
+                    load_batches(BATCHES)
+                    # SAVED_DATA_JSON_FILES.pop(_)
+                    clear_batches()
+                    for batch_name in BATCHES:
+                        load_batch(file_names, image_locations, quantities, description, checkmarked,
+                                    materials, batch_name_list, batch_index_val, BATCH=batch_name)
+                    try:
+                        for file_name in image_locations:
+                            os.remove(os.path.dirname(os.path.abspath(__file__)) + file_name)
+                    except FileNotFoundError: 
+                        pass
+            os.remove('Batches/' + text)
+            SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+            text = 'Batches/' + text
+            try:
+                if current_open_batch == text: Data_JSON = 'Batches/' + SAVED_DATA_JSON_FILES[0]
+                else: Data_JSON = current_open_batch
+            except IndexError:
+                with open('Batches/Batch #1.json', 'w+') as f:
+                    f.write('[{"NON_BATCH":[]}]')
+                    Data_JSON = 'Batches/Batch #1.json'
+            save = Data_JSON.replace('Batches/', '')
+            with open(SETTINGS_FILE, 'w+') as file: file.write(save)
+            SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+            BATCHES.clear()
+            load_batches(BATCHES)
+            self.reload_batch_load_view()
+            self.reload_batch_view()
+            self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+            self.setWindowTitle(f'{title} - {version} - {self.title_json}')
     def reload_batch_load_view(self):
+        self.actionLoadBatch.clear()
         for saved_batch_name in SAVED_DATA_JSON_FILES:
             saved_batch_name.replace('.json', '')
             action_load = QAction(saved_batch_name, self)
@@ -769,11 +828,15 @@ class mainwindowUI(QMainWindow):
             self.actionLoadBatch.addAction(action_load)
 
     def Load_saved_batch(self, batch_name):
-        batch_name += '.json'
-        Data_JSON = batch_name
+        global Data_JSON
+        Data_JSON = 'Batches/' + batch_name
         BATCHES.clear()
-        load_batches(BATCHES)
-        self.reload_list_ui()
+        self.reload_batch_view()
+        self.reload_auto_complete()
+        save = Data_JSON.replace('Batches/', '')
+        with open(SETTINGS_FILE, 'w+') as file: file.write(save)
+        self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+        self.setWindowTitle(f'{title} - {version} - {self.title_json}')
 
     def reload_auto_complete(self):
         clear_batches()
@@ -1156,7 +1219,6 @@ class mainwindowUI(QMainWindow):
         print_.triggered.connect(partial(self.openImage, path))
         popMenu.addAction(print_)
         popMenu.exec_(button.mapToGlobal(point))
-
     # CHECK BOX MENU
     def menu_check_or_uncheck_all(self, BATCH_NAME, checkbox, point):
         popMenu = QMenu(self)
@@ -1170,7 +1232,6 @@ class mainwindowUI(QMainWindow):
         popMenu.addAction(uncheck_all_action)
 
         popMenu.exec_(checkbox.mapToGlobal(point))
-
     @QtCore.pyqtSlot(QAction)
     def check_all(self, BATCH, TrueOrFalse):
         self.setCursor(Qt.BusyCursor)
@@ -1242,7 +1303,6 @@ class mainwindowUI(QMainWindow):
         try: i = next(self._iter3)
         except StopIteration: self._timer3.stop()
         else: self.all_batch_comboboxes[BATCH][i].setText(material_name)
-
     @QtCore.pyqtSlot(QAction)
     def change_all_materials(self, BATCH_NAME, material_name, custom = False):
         if custom:
@@ -1304,7 +1364,6 @@ class mainwindowUI(QMainWindow):
             popMenu.addMenu(move_all)
         popMenu.addAction(rename)
         popMenu.exec_(button.mapToGlobal(point))
-
     @QtCore.pyqtSlot(QAction)
     def move_part(self, BATCH_FROM, BATCH_TO, part_name, index, delete_index, layout, line):
         self.setCursor(Qt.BusyCursor)
@@ -1320,7 +1379,6 @@ class mainwindowUI(QMainWindow):
             QMessageBox.information(self, 'All files already exist.',
                                     f'That file already exists in "{BATCH_TO.text()}".', QMessageBox.Ok, QMessageBox.Ok)
             self.unsetCursor()
-
     @QtCore.pyqtSlot(QAction)
     def move_all_parts(self, BATCH_FROM, BATCH_TO):
         self.setCursor(Qt.BusyCursor)
@@ -1336,7 +1394,6 @@ class mainwindowUI(QMainWindow):
             QMessageBox.information(self, 'All files already exist.',
                                     f'That file already exists in "{BATCH_TO.text()}".', QMessageBox.Ok, QMessageBox.Ok)
             self.unsetCursor()
-
     @QtCore.pyqtSlot(QAction)
     def rename_part(self, BATCH, name, index):
         text, okPressed = QInputDialog.getText(
@@ -1874,7 +1931,7 @@ def sort_data(BATCH_NAME):
         merged = sorted(merge(temp_file_names, temp_image_locations, temp_quantities,
                               temp_description, temp_checkmarked, temp_materials), key=natsort_key)
 
-        for i, j in enumerate(temp_file_names):
+        for i, _ in enumerate(temp_file_names):
             Data_JSON_Contents[0][BATCH_NAME].pop(0)
             Data_JSON_Contents[0][BATCH_NAME].append({
                 'fileName': [merged[i][0]],
@@ -1943,6 +2000,7 @@ if __name__ == '__main__':
     clear_folders(['Capture', 'Print'])
     # Load data file
     load_batches(BATCHES)
+    SAVED_DATA_JSON_FILES = os.listdir('Batches/')
     # start GUI
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
