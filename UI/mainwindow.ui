@@ -165,6 +165,28 @@
      </layout>
     </item>
     <item>
+     <widget class="QLabel" name="txtCurrentViewingBatch">
+      <property name="font">
+       <font>
+        <pointsize>15</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="Line" name="line_2">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+    </item>
+    <item>
      <layout class="QGridLayout" name="GridLayoutHeaders"/>
     </item>
     <item>
@@ -183,7 +205,7 @@
            <x>0</x>
            <y>0</y>
            <width>513</width>
-           <height>208</height>
+           <height>212</height>
           </rect>
          </property>
          <layout class="QGridLayout" name="gridLayout">
@@ -276,7 +298,7 @@
      <x>0</x>
      <y>0</y>
      <width>585</width>
-     <height>29</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -306,10 +328,12 @@
      <addaction name="separator"/>
     </widget>
     <addaction name="actionCreate_Batch_2"/>
-    <addaction name="menu_Load_Batch"/>
     <addaction name="actionDelete_Batch_2"/>
+    <addaction name="menu_Load_Batch"/>
     <addaction name="separator"/>
     <addaction name="action_Save_As"/>
+    <addaction name="separator"/>
+    <addaction name="actionBackup_All_Files"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuHelp"/>
@@ -388,6 +412,11 @@
   <action name="action_Save_As">
    <property name="text">
     <string>&amp;Save As</string>
+   </property>
+  </action>
+  <action name="actionBackup_All_Files">
+   <property name="text">
+    <string>&amp;Backup All Files</string>
    </property>
   </action>
  </widget>
