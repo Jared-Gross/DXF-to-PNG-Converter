@@ -24,6 +24,7 @@ from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from ezdxf.addons.drawing import Frontend, RenderContext
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from PyQt5 import QtCore, QtGui, uic
+import argparse
 
 natsort_key = natsort_keygen()
 
@@ -2063,6 +2064,14 @@ if __name__ == '__main__':
     # Load data file
     load_batches(BATCHES)
     SAVED_DATA_JSON_FILES = os.listdir('Batches/')
+    
+    parser = argparse.ArgumentParser(description = 'This application allows converting DXF to PNG')
+    parser.add_argument('--cli',
+            help = 'Runs the application in Command Line Interface (CLI)',
+            action = 'store_true')
+    args = parser.parse_args()
+    print(args.cli)
+
     # start GUI
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
