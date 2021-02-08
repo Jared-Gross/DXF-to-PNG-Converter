@@ -2070,21 +2070,22 @@ if __name__ == '__main__':
             help = 'Runs the application in Command Line Interface (CLI)',
             action = 'store_true')
     args = parser.parse_args()
-    print(args.cli)
-
-    # start GUI
-    app = QApplication(sys.argv)
-    app.setStyle('Fusion')
-    app.setPalette(QApplication.style().standardPalette())
-    palette = QPalette()
-    palette.setColor(QPalette.ButtonText, QColor(30, 30, 30))
-    palette.setColor(QPalette.Text, QColor(30, 30, 30))
-    palette.setColor(QPalette.Window, QColor(255, 255, 255))
-    palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.Background, QColor(255, 255, 255))
-    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.Shadow, QColor(255, 255, 255))
-    palette.setColor(QPalette.Base, QColor(255, 255, 255))
-    app.setPalette(palette)
-    window = mainwindowUI()
-    sys.exit(app.exec_())
+    if (args.cli):
+        pass
+    else:
+        # start GUI
+        app = QApplication(sys.argv)
+        app.setStyle('Fusion')
+        app.setPalette(QApplication.style().standardPalette())
+        palette = QPalette()
+        palette.setColor(QPalette.ButtonText, QColor(30, 30, 30))
+        palette.setColor(QPalette.Text, QColor(30, 30, 30))
+        palette.setColor(QPalette.Window, QColor(255, 255, 255))
+        palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
+        palette.setColor(QPalette.Background, QColor(255, 255, 255))
+        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+        palette.setColor(QPalette.Shadow, QColor(255, 255, 255))
+        palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        app.setPalette(palette)
+        window = mainwindowUI()
+        sys.exit(app.exec_())
