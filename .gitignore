@@ -128,5 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Vim batches
+# App generated files
 Batches/
+Images/
+Print/
+Capture/
+Backups/
