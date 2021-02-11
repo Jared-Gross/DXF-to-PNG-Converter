@@ -26,6 +26,8 @@ from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from PyQt5 import QtCore, QtGui, uic
 import argparse
 
+from optparse import OptionParser
+
 natsort_key = natsort_keygen()
 
 
@@ -2138,10 +2140,24 @@ if __name__ == '__main__':
     parser.add_argument('--cli',
             help = 'Runs the application in Command Line Interface (CLI)',
             action = 'store_true')
+    parser.add_argument("-i", dest = "input_filename", required = True,
+                    help = "Input DXF file name", metavar = "FILE")
+    parser.add_argument("-o", dest = "output_filename", required = True,
+                    help = "Output PNG file name", metavar = "FILE")
     args = parser.parse_args()
-    """
+    
     if (args.cli):
-        pass
+        input_filename = str(args.input_filename)
+        output_filename = str(args.output_filename)
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        files = [input_filename]
+        converter = ConvertThread(files, 'NON_BATCH')
+        converter.convert_dxf2img(name = input_filename,
+                                  path = dir_path + "/" + input_filename,
+                                  save_to = dir_path + "/" + output_filename,
+                                  img_format = ".png",
+                                  img_res = 300,
+                                  index = 1)
     else:
         # start GUI
         app = QApplication(sys.argv)
@@ -2159,12 +2175,5 @@ if __name__ == '__main__':
         app.setPalette(palette)
         window = mainwindowUI()
         sys.exit(app.exec_())
-    """
-    files = ["20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF"]
-    converter = ConvertThread(files, 'NON_BATCH')
-    converter.convert_dxf2img("sample_dxf.dxf",
-                              "/home/jalovisko/dev/DXF-to-PNG-Converter/sample_dxf.dxf",
-                              "/home/jalovisko/dev/DXF-to-PNG-Converter/test.png",
-                              ".png",
-                              300,
-                              index = 1)
+    
+    
