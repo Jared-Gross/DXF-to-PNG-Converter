@@ -2162,8 +2162,8 @@ if __name__ == '__main__':
     """
     files = ["20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF"]
     converter = ConvertThread(files, 'NON_BATCH')
-    converter.convert_dxf2img("20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF",
-                              "/home/jalovisko/dev/DXF-to-PNG-Converter/20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF",
+    converter.convert_dxf2img("sample_dxf.dxf",
+                              "/home/jalovisko/dev/DXF-to-PNG-Converter/sample_dxf.dxf",
                               "/home/jalovisko/dev/DXF-to-PNG-Converter/test.png",
                               ".png",
                               300,
