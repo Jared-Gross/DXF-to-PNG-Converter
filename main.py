@@ -2047,7 +2047,76 @@ def get_all_file_paths(directory):
             file_paths.append(filepath) 
   
     # returning all file paths 
-    return file_paths         
+    return file_paths
+
+    
+def cli_start_conversion(files):
+    threads = []
+    converter = ConvertThread(files, 'NON_BATCH')
+    #converter.data_downloaded.connect(self.on_data_ready)
+    converter.data_downloaded.connect()
+    threads.append(converter)
+    converter.start()
+
+
+def cli_convert(openFileDirectory):
+    """
+    This function makes it possible to convert without GUI
+
+    Parameters
+    ----------
+    openFileDirectory : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    files = ["sample_dxf.dxf"]
+    # open file directory
+    
+    existing_files = []
+    non_existing_files = []
+    approved = ['.dxf', '.DXF', '.png', '.PNG', '.jpg', '.jpeg']
+    files[:] = [url for url in files if any(
+        sub in url for sub in approved)]
+    if files:
+        """
+        if selectedBatch == []:
+            batch_to_add_to, okPressed = QInputDialog().getItem(self, "Select an existing batch.",
+                                                                "Which batch do you want to add to:", BATCHES + ['NON_BATCH'], 0, False)
+            if not okPressed:
+                return
+        else:
+            batch_to_add_to = selectedBatch[0]
+        
+        clear_batches()
+        load_batch(file_names, image_locations, quantities, description, checkmarked,
+                   materials, batch_name_list, batch_index_val, BATCH=batch_to_add_to)
+        """
+        temp_fileNames = []
+        # Generate file name
+        for i, j in enumerate(files):
+            temp_fileNames.append(j.split("/")[-1].split(".")[0])
+        # idk what this does but it works and it makes it faster they say
+        set_1 = set(temp_fileNames)
+        # add all files to this list if it does not exist in the data.json file
+        non_existing_files = [
+            item for item in set_1 if item not in file_names]
+        # add all files to this list if they already have been added before
+        non_existing_files_index = []
+        new_files = []
+        new_files = list(dict.fromkeys(new_files))
+        if not existing_files:
+            cli_start_conversion(files)
+            return
+        if new_files:
+            cli_start_conversion(new_files)
+        else:
+            QMessageBox.information(self, 'All files already exist.',
+                                    f"All the selected files are already added.\nThere are no new files to add.", QMessageBox.Ok, QMessageBox.Ok)
+     
 
 if __name__ == '__main__':
     # if images directory doesn't exist we create it
