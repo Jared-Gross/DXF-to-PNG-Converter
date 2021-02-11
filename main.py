@@ -2139,6 +2139,7 @@ if __name__ == '__main__':
             help = 'Runs the application in Command Line Interface (CLI)',
             action = 'store_true')
     args = parser.parse_args()
+    """
     if (args.cli):
         pass
     else:
@@ -2158,3 +2159,12 @@ if __name__ == '__main__':
         app.setPalette(palette)
         window = mainwindowUI()
         sys.exit(app.exec_())
+    """
+    files = ["20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF"]
+    converter = ConvertThread(files, 'NON_BATCH')
+    converter.convert_dxf2img("20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF",
+                              "/home/jalovisko/dev/DXF-to-PNG-Converter/20-031-01-RP(APPUI_DE_LA_CHEVILLE).DXF",
+                              "/home/jalovisko/dev/DXF-to-PNG-Converter/test.png",
+                              ".png",
+                              300,
+                              index = 1)
