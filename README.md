@@ -6,5 +6,5 @@ If the GUI is not required, one may run the application as follows:
 ```bash
 python main.py --cli -i input.dxf -o output.png
 ```
-Both input and output files are set relative the script's root directory.
+Both input and output files are set relative to the script's root directory, i.e. should be located in the same directory.
 
