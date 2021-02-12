@@ -135,6 +135,10 @@ class ConvertThread(QThread):
         self.data_downloaded.emit('Finished!')
 
     def convert_dxf2img(self, name, path, save_to, img_format, img_res, index = 1):
+        if img_res <= 0:
+            raise ValueError('The file resolution must be a positive number')
+        if not os.path.exists(path):
+            raise ValueError('File does not exist')
         # Checking the file extentions
         input_extention = os.path.splitext(input_filename)[1].lower()
         if (input_extention != '.dxf'):
