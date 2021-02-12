@@ -2073,7 +2073,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description = 'This application allows converting DXF to PNG')
     parser.add_argument('--cli',
-            help = 'Runs the application in Command Line Interface (CLI)',
+            help = 'Runs the application in Command Line Interface (CLI). Example:\npython main.py --cli -i input.dxf -o output.png',
             action = 'store_true')
     parser.add_argument("-i", dest = "input_filename",
                     help = "Input DXF file name", metavar = "FILE")
@@ -2096,7 +2096,7 @@ if __name__ == '__main__':
         print('Conversion is successful')
         print(f'File written to {dir_path}/{output_filename}')
     else:
-        # start GUI
+        # start the GUI
         app = QApplication(sys.argv)
         app.setStyle('Fusion')
         app.setPalette(QApplication.style().standardPalette())
