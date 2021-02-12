@@ -134,7 +134,15 @@ class ConvertThread(QThread):
         sort_data(self.selected_batch_name)
         self.data_downloaded.emit('Finished!')
 
-    def convert_dxf2img(self, name, path, save_to, img_format, img_res, index):
+    def convert_dxf2img(self, name, path, save_to, img_format, img_res, index = 1):
+        # Checking the file extentions
+        input_extention = os.path.splitext(input_filename)[1].lower()
+        if (input_extention != '.dxf'):
+            raise ValueError('Incorrect input file format: the input file must be DXF')
+        output_extention = os.path.splitext(output_filename)[1].lower()
+        if (output_extention != '.png'):
+            raise ValueError('Incorrect output file format: the output file mush be PNG')
+        # Reading the DXF file
         doc = ezdxf.readfile(path)
         msp = doc.modelspace()
         auditor = doc.audit()
@@ -2083,8 +2091,7 @@ if __name__ == '__main__':
                                   path = dir_path + "/" + input_filename,
                                   save_to = dir_path + "/" + output_filename,
                                   img_format = ".png",
-                                  img_res = 300,
-                                  index = 1)
+                                  img_res = 300)
     else:
         # start GUI
         app = QApplication(sys.argv)
