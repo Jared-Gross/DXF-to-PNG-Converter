@@ -7,7 +7,6 @@ import shutil
 import ctypes
 import imutils
 import threading
-import threading
 import subprocess
 from zipfile import ZipFile 
 import zipfile
@@ -26,10 +25,7 @@ from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from PyQt5 import QtCore, QtGui, uic
 import argparse
 
-from optparse import OptionParser
-
 natsort_key = natsort_keygen()
-
 
 SETTINGS_FILE = 'settings.txt'
 
