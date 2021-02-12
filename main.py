@@ -2087,11 +2087,14 @@ if __name__ == '__main__':
         dir_path = os.path.dirname(os.path.realpath(__file__))
         files = [input_filename]
         converter = ConvertThread(files, 'NON_BATCH')
+        print(f'Converting DXF file {dir_path}/{input_filename} to PNG ...')
         converter.convert_dxf2img(name = input_filename,
                                   path = dir_path + "/" + input_filename,
                                   save_to = dir_path + "/" + output_filename,
                                   img_format = ".png",
                                   img_res = 300)
+        print('Conversion is successful')
+        print(f'File written to {dir_path}/{output_filename}')
     else:
         # start GUI
         app = QApplication(sys.argv)
