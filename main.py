@@ -2071,9 +2071,9 @@ if __name__ == '__main__':
     parser.add_argument('--cli',
             help = 'Runs the application in Command Line Interface (CLI)',
             action = 'store_true')
-    parser.add_argument("-i", dest = "input_filename", required = True,
+    parser.add_argument("-i", dest = "input_filename",
                     help = "Input DXF file name", metavar = "FILE")
-    parser.add_argument("-o", dest = "output_filename", required = True,
+    parser.add_argument("-o", dest = "output_filename",
                     help = "Output PNG file name", metavar = "FILE")
     args = parser.parse_args()
     
