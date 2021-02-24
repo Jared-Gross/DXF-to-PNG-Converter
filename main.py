@@ -7,12 +7,11 @@ import shutil
 import ctypes
 import imutils
 import threading
-import threading
 import subprocess
-from zipfile import ZipFile 
+from zipfile import ZipFile
+from fpdf import FPDF
 import zipfile
 import matplotlib.pyplot as plt
-from PyQt5 import *
 from PIL import Image
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -24,9 +23,9 @@ from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from ezdxf.addons.drawing import Frontend, RenderContext
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from PyQt5 import QtCore, QtGui, uic
+import webbrowser
 
 natsort_key = natsort_keygen()
-
 
 SETTINGS_FILE = 'settings.txt'
 
@@ -39,7 +38,6 @@ with open(SETTINGS_FILE, 'r') as f:
     Data_JSON = 'Batches/' + f.read()
 
 Data_JSON_Contents = []
-
 
 BATCHES = []
 NON_BATCHES = ['NON_BATCH']
@@ -81,7 +79,7 @@ class ConvertThread(QThread):
         for i, j in enumerate(self.file):
             dxffilepath = j
             file_name, file_extension = os.path.splitext(j)
-            file_name = file_name.replace('.','-')
+            file_name = file_name.replace('.', '-')
             temp_fileName = file_name.split("/")[-1].split(".")[0]
             print(temp_fileName)
             path = os.path.dirname(os.path.abspath(
@@ -95,14 +93,15 @@ class ConvertThread(QThread):
                        materials, batch_name_list, batch_index_val, BATCH=self.selected_batch_name)
             if file_extension.lower() == '.dxf':
                 # ! make sure this works.
-                if not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/Images/' + temp_fileName + '.png'):
+                if not os.path.isfile(
+                        os.path.dirname(os.path.realpath(__file__)) + '/Images/' + temp_fileName + '.png'):
                     self.data_downloaded.emit(
-                        f'{i+1}/{len(self.file)} - {temp_fileName} - Converting..')
+                        f'{i + 1}/{len(self.file)} - {temp_fileName} - Converting..')
                     self.convert_dxf2img(
                         temp_fileName, dxffilepath, path, img_format='.png', img_res=300, index=i)
                 else:
                     self.data_downloaded.emit(
-                        f'{i+1}/{len(self.file)} - {temp_fileName} - Saving..')
+                        f'{i + 1}/{len(self.file)} - {temp_fileName} - Saving..')
                 Data_JSON_Contents[0][self.selected_batch_name].append({
                     'fileName': [temp_fileName],
                     'imgLoc': ['/Images/' + temp_fileName + '.png'],
@@ -112,14 +111,15 @@ class ConvertThread(QThread):
                     'material': ['1/2 50W STEEL']
                 })
             elif file_extension.lower() in ['.png', '.jpg', '.jpeg']:
-                if not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + '/Images/' + temp_fileName + file_extension.lower()):
+                if not os.path.isfile(os.path.dirname(
+                        os.path.realpath(__file__)) + '/Images/' + temp_fileName + file_extension.lower()):
                     self.data_downloaded.emit(
-                        f'{i+1}/{len(self.file)} - {temp_fileName} - Copying..')
+                        f'{i + 1}/{len(self.file)} - {temp_fileName} - Copying..')
                     shutil.copyfile(dxffilepath, os.path.dirname(os.path.realpath(
                         __file__)) + '/Images/' + temp_fileName + file_extension.lower())
                 else:
                     self.data_downloaded.emit(
-                        f'{i+1}/{len(self.file)} - {temp_fileName} - Saving..')
+                        f'{i + 1}/{len(self.file)} - {temp_fileName} - Saving..')
                 Data_JSON_Contents[0][self.selected_batch_name].append({
                     'fileName': [temp_fileName],
                     'imgLoc': ['/Images/' + temp_fileName + file_extension.lower()],
@@ -141,7 +141,7 @@ class ConvertThread(QThread):
         auditor = doc.audit()
         if len(auditor.errors) != 0:
             self.data_downloaded.emit(
-                f'{index+1}/{len(self.file)} - {name} - Error!')
+                f'{index + 1}/{len(self.file)} - {name} - Error!')
             loop = QEventLoop()
             QTimer.singleShot(1000, loop.quit)
             loop.exec_()
@@ -157,7 +157,7 @@ class ConvertThread(QThread):
             Frontend(ctx, out).draw_layout(msp, finalize=True)
 
             self.data_downloaded.emit(
-                f'{index+1}/{len(self.file)} - {name} - Saving...')
+                f'{index + 1}/{len(self.file)} - {name} - Saving...')
             fig.savefig(save_to, dpi=img_res)
             im = cv2.imread(save_to)
             hei, wid, c = im.shape
@@ -245,7 +245,7 @@ class ProcessImagesThread(QThread):
                 img = cv2.imread(file)
                 h, w, _ = img.shape
                 cv2.putText(img, f'Ship To: {self.shipto}',
-                            (int(w/3), 30), font, 1, (30, 30, 30), 2)
+                            (int(w / 3), 30), font, 1, (30, 30, 30), 2)
                 # cv2.putText(img, f'{shipto}',
                 #             (int(w/4), 62), font, 1, (0, 0, 0), 2)
                 cv2.imwrite(file, img)
@@ -257,8 +257,8 @@ class ProcessImagesThread(QThread):
             im_new.save(file, quality=95)
             img = cv2.imread(file)
             h, w, _ = img.shape
-            cv2.putText(img, f'Page {page+1} of {len(onlyfiles)}',
-                        (int(w/2-60), h-20), font, 1, (30, 30, 30), 2)
+            cv2.putText(img, f'Page {page + 1} of {len(onlyfiles)}',
+                        (int(w / 2 - 60), h - 20), font, 1, (30, 30, 30), 2)
             cv2.imwrite(file, img)
 
             src = cv2.imread(file, 1)
@@ -269,6 +269,26 @@ class ProcessImagesThread(QThread):
             dst = cv2.merge(rgba, 4)
             cv2.imwrite(file, dst)
         clear_folders(['Capture'])
+        pdf = FPDF()
+        w,h = 0,0
+
+        NATSORT_KEY = natsort_keygen()
+        all_file_names = os.listdir('Print')
+        all_file_names.sort(key=NATSORT_KEY)
+        for iindex, path in enumerate(all_file_names):
+            path = 'Print/' + path
+            # if os.path.exists(path):
+            if iindex == 0:
+                cover = Image.open(path)
+                w,h = cover.size
+                pdf = FPDF(unit = "pt", format = [w,h])
+            image = path
+            pdf.add_page()
+            pdf.image(image,0,0,w,h)
+            print("processed %d" % iindex)
+        pdf.output("output.pdf", "F")
+        print("done")
+        webbrowser.open_new(f'{os.path.dirname(os.path.realpath(__file__))}/output.pdf')
 
     def add_margin(self, pil_img, top, right, bottom, left, color):
         width, height = pil_img.size
@@ -293,7 +313,7 @@ class mainwindowUI(QMainWindow):
         self.setMinimumSize(930, 500)
         self.setWindowIcon(QIcon(os.path.dirname(
             os.path.realpath(__file__)) + "/icon.png"))
-        self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+        self.title_json = Data_JSON.replace('Batches/', '').replace('.json', '')
         self.txtCurrentViewingBatch.setText(self.title_json)
         self.setWindowTitle(f'{title} - {version} - {self.title_json}')
 
@@ -308,8 +328,26 @@ class mainwindowUI(QMainWindow):
         self.returns = {}
         self.txtBoxList = []
         self.last_search_text = ''
-        self.materials = ["Stainless Steel 7GA", "Galvanized Steel  6GA", "Galvanized Steel  8GA", "Galvanized Steel 10GA", "Galvanized Steel 12GA", "Galvanized Steel 14GA", "Galvanized Steel 16GA", "Galvanized Steel 18GA", "Galvanized Steel 20GA", "Galvanized Steel 22GA", "Galvanized Steel 24GA", "Galvanized Steel 26GA", "Stainless Steel  6GA", "Stainless Steel  8GA", "Stainless Steel 10GA", "Stainless Steel 12GA", "Stainless Steel 14GA", "Stainless Steel 16GA", "Stainless Steel 18GA", "Stainless Steel 20GA", "Stainless Steel 22GA", "Stainless Steel 24GA", "Stainless Steel 26GA", "Mild steel 18 Ga.", "Mild Steel 16 Ga.", "Mild Steel 14 Ga.", "Mild Steel 12 Ga.", "Mild Steel 10 Ga.", "Mild Steel 3/16", "Mild Steel 1/4", "Mild Steel 3/8", "Mild Steel 11 Ga.", "Mild Steel 5/16", "Mild Steel 3/4",
-                          "Mild Steel 1/2", "Mild Steel 1", "CUSTOMER MATERIAL", "Mild Steel 5/8", "Stainless Steel 1/4", "BRASS 1/8", "Stainless Steel 3/8", "Mild Steel 7/8", "QT-100 3/16", "S.S. #4 Finish 12 GA.", "S.S. #4 Finish 14 GA.", "Mild Steel 22 Ga.", "S.S. #4 FINISH  16 GA.", "S.S. #4 FINISH  11 GA.", "3/16 ALUMINUM", "Mild Steel 8 Ga.", "3/4 AR 400", "5/8 AR400", "1/2 AR 400", "3/8 AR 400", "5/16 AR 400", "1/4 AR 400", "3/16 AR 400", "3/4 QT100", "5/8 QT100", "1/2 QT100", "3/8 QT100", "5/16 QT100", "1/4 QT100", "3/16 QT 100", "1/2 S.S.", "1/4 AR 200", "3/16 ALUM.", "18 GA STAINLESS/PVC COATING", "1/2 50W STEEL", "Mild Steel 20 GA.", "10GA. ALUMINUM", "1/4 ALUMINUM", "3/8 AR200", "ALUMINUM 16 GA", "ALUMINUM 1/8", "ALUMINUM 14 GA", "1/4 50W PLATE", "3/16 50W PLATE", "ROUND SOLID", "Mild Steel 10GA OR 11GA"]
+        self.materials = ["Stainless Steel 7GA", "Galvanized Steel  6GA", "Galvanized Steel  8GA",
+                          "Galvanized Steel 10GA", "Galvanized Steel 12GA", "Galvanized Steel 14GA",
+                          "Galvanized Steel 16GA", "Galvanized Steel 18GA", "Galvanized Steel 20GA",
+                          "Galvanized Steel 22GA", "Galvanized Steel 24GA", "Galvanized Steel 26GA",
+                          "Stainless Steel  6GA", "Stainless Steel  8GA", "Stainless Steel 10GA",
+                          "Stainless Steel 12GA", "Stainless Steel 14GA", "Stainless Steel 16GA",
+                          "Stainless Steel 18GA", "Stainless Steel 20GA", "Stainless Steel 22GA",
+                          "Stainless Steel 24GA", "Stainless Steel 26GA", "Mild steel 18 Ga.", "Mild Steel 16 Ga.",
+                          "Mild Steel 14 Ga.", "Mild Steel 12 Ga.", "Mild Steel 10 Ga.", "Mild Steel 3/16",
+                          "Mild Steel 1/4", "Mild Steel 3/8", "Mild Steel 11 Ga.", "Mild Steel 5/16", "Mild Steel 3/4",
+                          "Mild Steel 1/2", "Mild Steel 1", "CUSTOMER MATERIAL", "Mild Steel 5/8",
+                          "Stainless Steel 1/4", "BRASS 1/8", "Stainless Steel 3/8", "Mild Steel 7/8", "QT-100 3/16",
+                          "S.S. #4 Finish 12 GA.", "S.S. #4 Finish 14 GA.", "Mild Steel 22 Ga.",
+                          "S.S. #4 FINISH  16 GA.", "S.S. #4 FINISH  11 GA.", "3/16 ALUMINUM", "Mild Steel 8 Ga.",
+                          "3/4 AR 400", "5/8 AR400", "1/2 AR 400", "3/8 AR 400", "5/16 AR 400", "1/4 AR 400",
+                          "3/16 AR 400", "3/4 QT100", "5/8 QT100", "1/2 QT100", "3/8 QT100", "5/16 QT100", "1/4 QT100",
+                          "3/16 QT 100", "1/2 S.S.", "1/4 AR 200", "3/16 ALUM.", "18 GA STAINLESS/PVC COATING",
+                          "1/2 50W STEEL", "Mild Steel 20 GA.", "10GA. ALUMINUM", "1/4 ALUMINUM", "3/8 AR200",
+                          "ALUMINUM 16 GA", "ALUMINUM 1/8", "ALUMINUM 14 GA", "1/4 50W PLATE", "3/16 50W PLATE",
+                          "ROUND SOLID", "Mild Steel 10GA OR 11GA"]
         self.materials.sort()
         self.batches_to_load = []
         self.delete_buttons = []
@@ -420,7 +458,7 @@ class mainwindowUI(QMainWindow):
         self.actionBackup_All_Files = self.findChild(QAction, 'actionBackup_All_Files')
         self.actionBackup_All_Files.setIcon(QIcon('zip.png'))
         self.actionBackup_All_Files.triggered.connect(self.generate_backup)
-        
+
         self.actionAbout_3.triggered.connect(self.open_about_window)
         self.actionAbout_3.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_MessageBoxQuestion')))
@@ -465,26 +503,26 @@ class mainwindowUI(QMainWindow):
         else:
             event.ignore()
 
-    def generate_backup(self): 
+    def generate_backup(self):
         self.setCursor(Qt.BusyCursor)
         t = threading.Thread(target=self.generate_backup_Thread, args=('isdone',))
         t.start()
         t.join()
         if self.returns['isdone'] == 'True':
             self.unsetCursor()
-            
+
     def generate_backup_Thread(self, bar):
         generate_back_up_name = datetime.now().strftime("%A %B %d %Y")
         directories = ['Images/', 'Batches/']
         file_paths = []
         for directory in directories:
-            file_paths += get_all_file_paths(directory) 
-        with ZipFile(f'Backups/Backup - {generate_back_up_name}.zip','w', compression=zipfile.ZIP_DEFLATED) as zip: 
-            for file in file_paths: 
-                zip.write(file) 
+            file_paths += get_all_file_paths(directory)
+        with ZipFile(f'Backups/Backup - {generate_back_up_name}.zip', 'w', compression=zipfile.ZIP_DEFLATED) as zip:
+            for file in file_paths:
+                zip.write(file)
             zip.write('settings.txt')
         self.returns[bar] = 'True'
-    
+
     def start_conversion(self, files, batchToAddTo):
         self.setCursor(Qt.BusyCursor)
         self.threads = []
@@ -555,11 +593,12 @@ class mainwindowUI(QMainWindow):
                 if text == j:
                     clear_batches()
                     load_batch(file_names, image_locations, quantities, description, checkmarked,
-                                materials, batch_name_list, batch_index_val, BATCH=j)
+                               materials, batch_name_list, batch_index_val, BATCH=j)
                     try:
                         for file_name in image_locations:
                             os.remove(os.path.dirname(os.path.abspath(__file__)) + file_name)
-                    except FileNotFoundError: pass
+                    except FileNotFoundError:
+                        pass
                     Data_JSON_Contents[0].pop(text)
                     with open(Data_JSON, mode='w+', encoding='utf-8') as file:
                         json.dump(Data_JSON_Contents, file,
@@ -589,7 +628,8 @@ class mainwindowUI(QMainWindow):
         if files:
             if selectedBatch == []:
                 batch_to_add_to, okPressed = QInputDialog().getItem(self, "Select an existing batch.",
-                                                                    "Which batch do you want to add to:", BATCHES + ['NON_BATCH'], 0, False)
+                                                                    "Which batch do you want to add to:",
+                                                                    BATCHES + ['NON_BATCH'], 0, False)
                 if not okPressed:
                     return
             else:
@@ -619,8 +659,10 @@ class mainwindowUI(QMainWindow):
             #     for i in range(len(BATCHES)): self.batches_to_load.append(BATCHES[i])
             # else:  self.batches_to_load.append(BATCHES[int(self.batchToView.currentIndex())])
             for i, j in enumerate(existing_files):
-                buttonReply = QMessageBox.critical(self, f'{files[i]}', f"A file named '{j}' already exists in {batch_to_add_to}.\n\nDo you want to replace it?",
-                                                   QMessageBox.YesToAll | QMessageBox.Yes | QMessageBox.Abort, QMessageBox.YesToAll)
+                buttonReply = QMessageBox.critical(self, f'{files[i]}',
+                                                   f"A file named '{j}' already exists in {batch_to_add_to}.\n\nDo you want to replace it?",
+                                                   QMessageBox.YesToAll | QMessageBox.Yes | QMessageBox.Abort,
+                                                   QMessageBox.YesToAll)
                 if buttonReply == QMessageBox.Abort:
                     return
                 elif buttonReply == QMessageBox.Yes:
@@ -649,14 +691,15 @@ class mainwindowUI(QMainWindow):
                 self.start_conversion(new_files, batch_to_add_to)
             else:
                 QMessageBox.information(self, 'All files already exist.',
-                                        f"All the selected files are already added.\nThere are no new files to add.", QMessageBox.Ok, QMessageBox.Ok)
+                                        f"All the selected files are already added.\nThere are no new files to add.",
+                                        QMessageBox.Ok, QMessageBox.Ok)
 
     def btnOpenPath(self, path):
         FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
         path = os.path.normpath(path)
         if os.path.isdir(path):
             subprocess.run([FILEBROWSER_PATH, path], stdout=subprocess.PIPE,
-                           stderr=sbuprocess.PIPE, stdin=subprocess.PIPE)
+                           stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         elif os.path.isfile(path):
             subprocess.run([FILEBROWSER_PATH, '/select,', os.path.normpath(path)],
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -671,7 +714,9 @@ class mainwindowUI(QMainWindow):
         time_now = datetime.now()
         diffrence = (time_now - latest_update_date).days
         QMessageBox.information(
-            self, f'{title}', f"Version: {version}\nLast Update: {diffrence} days ago on {latest_update_date_formated}.\nDeveloped by: TheCodingJ's", QMessageBox.Ok, QMessageBox.Ok)
+            self, f'{title}',
+            f"Version: {version}\nLast Update: {diffrence} days ago on {latest_update_date_formated}.\nDeveloped by: TheCodingJ's",
+            QMessageBox.Ok, QMessageBox.Ok)
 
     def openAbout(self):
         self.about = aboutwindowUI()
@@ -695,8 +740,10 @@ class mainwindowUI(QMainWindow):
         # sort_data(batch)
         # self.clearLayout(layout)
         # line.deleteLater()
-        try: os.remove(os.path.dirname(os.path.abspath(__file__)) + image_locations[index])
-        except FileNotFoundError: pass
+        try:
+            os.remove(os.path.dirname(os.path.abspath(__file__)) + image_locations[index])
+        except FileNotFoundError:
+            pass
         # clear_batches()
         # for index_of_batch, batch_name in enumerate(self.batches_to_load):
         #     load_batch(file_names, image_locations, quantities, description, checkmarked,
@@ -759,7 +806,7 @@ class mainwindowUI(QMainWindow):
                 screen = batch_group_box_GUI[num].grab()
                 image = QImage(screen)
                 image.save(f"Capture/capture - {num}.png")
-        self.openImage('view.png')
+        # self.openImage('view.png')
         self.start_image_conversion()
 
     def reload_batch_view(self):
@@ -790,19 +837,26 @@ class mainwindowUI(QMainWindow):
         # self.batchToView.setItemIcon(len(
         #     BATCHES) + 6, QIcon(self.style().standardIcon(getattr(QStyle, 'SP_DialogDiscardButton'))))
 
-    def Save_batch_as(self, string = ''):
+    def Save_batch_as(self, string=''):
         global SAVED_DATA_JSON_FILES
-        fileName, _ = QFileDialog.getSaveFileName(self,"Save Batch File", os.path.dirname(os.path.abspath(__file__)) + '/Batches',"JSON Files (*.json)")
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save Batch File",
+                                                  os.path.dirname(os.path.abspath(__file__)) + '/Batches',
+                                                  "JSON Files (*.json)")
         if fileName:
             if not os.path.isfile(fileName):
                 if not fileName.endswith('.json'):
                     fileName += '.json'
                 try:
-                    shutil.copy(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, fileName, follow_symlinks=True)
+                    shutil.copy(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, fileName,
+                                follow_symlinks=True)
                 except PermissionError:
-                    with open(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, 'rb') as src, open(fileName, 'wb') as dst: dst.write(src.read())
+                    with open(os.path.dirname(os.path.abspath(__file__)) + '/' + Data_JSON, 'rb') as src, open(fileName,
+                                                                                                               'wb') as dst:
+                        dst.write(src.read())
                 except:
-                    QMessageBox.critical(self, 'Permission denied', "Permission denied.\n\nTry running the program in Administrator mode.", QMessageBox.Ok, QMessageBox.Ok)
+                    QMessageBox.critical(self, 'Permission denied',
+                                         "Permission denied.\n\nTry running the program in Administrator mode.",
+                                         QMessageBox.Ok, QMessageBox.Ok)
                     return
             # else:
             #     text = fileName.split("/")[-1].split(".")[0]
@@ -819,15 +873,19 @@ class mainwindowUI(QMainWindow):
         if okPressed and text != '':
             if not text.endswith('.json'): text += '.json'
             if not os.path.isfile("Batches/" + text):
-                with open('Batches/' + text, 'w+') as file: file.write('[{"NON_BATCH":[]}]')
+                with open('Batches/' + text, 'w+') as file:
+                    file.write('[{"NON_BATCH":[]}]')
             else:
                 text.replace('.json', '')
-                buttonReply = QMessageBox.question(self, 'File already Exists', f"{text} already exists.\n\nWould you like to try again?", QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No)
+                buttonReply = QMessageBox.question(self, 'File already Exists',
+                                                   f"{text} already exists.\n\nWould you like to try again?",
+                                                   QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                                                   QMessageBox.No)
                 if buttonReply == QMessageBox.Yes: self.Create_saved_batch_file(text)
                 return
             SAVED_DATA_JSON_FILES = os.listdir('Batches/')
             self.reload_batch_load_view()
-            
+
     def Delete_saved_batch_files(self):
         global BATCHES, Data_JSON, SAVED_DATA_JSON_FILES
         current_open_batch = Data_JSON
@@ -845,33 +903,36 @@ class mainwindowUI(QMainWindow):
                     clear_batches()
                     for batch_name in BATCHES:
                         load_batch(file_names, image_locations, quantities, description, checkmarked,
-                                    materials, batch_name_list, batch_index_val, BATCH=batch_name)
+                                   materials, batch_name_list, batch_index_val, BATCH=batch_name)
                     try:
                         for file_name in image_locations:
                             os.remove(os.path.dirname(os.path.abspath(__file__)) + file_name)
-                    except FileNotFoundError: 
+                    except FileNotFoundError:
                         pass
             os.remove('Batches/' + text)
             SAVED_DATA_JSON_FILES = os.listdir('Batches/')
             text = 'Batches/' + text
             try:
-                if current_open_batch == text: Data_JSON = 'Batches/' + SAVED_DATA_JSON_FILES[0]
-                else: Data_JSON = current_open_batch
+                if current_open_batch == text:
+                    Data_JSON = 'Batches/' + SAVED_DATA_JSON_FILES[0]
+                else:
+                    Data_JSON = current_open_batch
             except IndexError:
                 with open('Batches/Batch #1.json', 'w+') as f:
                     f.write('[{"NON_BATCH":[]}]')
                     Data_JSON = 'Batches/Batch.json'
             save = Data_JSON.replace('Batches/', '')
-            with open(SETTINGS_FILE, 'w+') as file: file.write(save)
+            with open(SETTINGS_FILE, 'w+') as file:
+                file.write(save)
             SAVED_DATA_JSON_FILES = os.listdir('Batches/')
             BATCHES.clear()
             load_batches(BATCHES)
             self.reload_batch_load_view()
             self.reload_batch_view()
-            self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+            self.title_json = Data_JSON.replace('Batches/', '').replace('.json', '')
             self.txtCurrentViewingBatch.setText(self.title_json)
             self.setWindowTitle(f'{title} - {version} - {self.title_json}')
-    
+
     def reload_batch_load_view(self):
         self.actionLoadBatch.clear()
         for saved_batch_name in SAVED_DATA_JSON_FILES:
@@ -890,7 +951,7 @@ class mainwindowUI(QMainWindow):
         self.reload_auto_complete()
         save = Data_JSON.replace('Batches/', '')
         with open(SETTINGS_FILE, 'w+') as file: file.write(save)
-        self.title_json = Data_JSON.replace('Batches/','').replace('.json','')
+        self.title_json = Data_JSON.replace('Batches/', '').replace('.json', '')
         self.setWindowTitle(f'{title} - {version} - {self.title_json}')
         self.txtCurrentViewingBatch.setText(self.title_json)
 
@@ -938,10 +999,11 @@ class mainwindowUI(QMainWindow):
             self.batches_to_load.append(NON_BATCHES[0])
 
         self.btnPrint.setHidden(self.batchToView.currentText() in [
-                                'Everything', 'All Part Batches'])
+            'Everything', 'All Part Batches'])
 
         # self.btnPrint.setHidden(True)
-        for index, name in enumerate(['             Name:', 'Description:', 'Material:', 'Quantity:', 'Image:', 'Checkmark:']):
+        for index, name in enumerate(
+                ['             Name:', 'Description:', 'Material:', 'Quantity:', 'Image:', 'Checkmark:']):
             self.lbl = QLabel(name)
             self.GridLayoutHeaders.addWidget(self.lbl, 0, index)
 
@@ -1001,7 +1063,8 @@ class mainwindowUI(QMainWindow):
             items_to_add = list_to_check_adding != []
         for _, name_batch in enumerate(self.batches_to_load):
             for i, _ in enumerate(orginized_file_names[name_batch]):
-                if (self.txtSearch.text() != '' and self.txtSearch.text().lower() in orginized_file_names[name_batch][i].lower()):
+                if (self.txtSearch.text() != '' and self.txtSearch.text().lower() in orginized_file_names[name_batch][
+                    i].lower()):
                     orginized_length_of_batches[name_batch][0] += 1
         length_of_batches = [
             orginized_length_of_batches[name_batch][0]
@@ -1014,13 +1077,13 @@ class mainwindowUI(QMainWindow):
                 if number == 'EMPTY':
                     temp_amount_of_zeros_found += 1
                     for i, name in enumerate(self.batches_to_load):
-                        if name == self.batches_to_load[temp_amount_of_zeros_found-1]:
+                        if name == self.batches_to_load[temp_amount_of_zeros_found - 1]:
                             self.batches_to_load.pop(
-                                temp_amount_of_zeros_found-1)
-                            batch_vbox_GUI.pop(temp_amount_of_zeros_found-1)
-                            length_of_batches.pop(temp_amount_of_zeros_found-1)
+                                temp_amount_of_zeros_found - 1)
+                            batch_vbox_GUI.pop(temp_amount_of_zeros_found - 1)
+                            length_of_batches.pop(temp_amount_of_zeros_found - 1)
                             batch_group_box_GUI.pop(
-                                temp_amount_of_zeros_found-1)
+                                temp_amount_of_zeros_found - 1)
                             batch_lengths.pop(index)
                 elif number == 0:
                     temp_amount_of_zeros_found += 1
@@ -1030,13 +1093,15 @@ class mainwindowUI(QMainWindow):
         if len(file_names) > 0:
             self._iter = iter(range(len(file_names)))
             self._timer = QTimer(interval=10, timeout=partial(self.load_UI_objects, length_of_batches,
-                                                              batch_lengths, batch_group_box_GUI, batch_vbox_GUI, self.batches_to_load, True, items_to_add))
+                                                              batch_lengths, batch_group_box_GUI, batch_vbox_GUI,
+                                                              self.batches_to_load, True, items_to_add))
             self._timer.start()
         else:
             self.load_UI_objects(length_of_batches, batch_lengths, batch_group_box_GUI,
                                  batch_vbox_GUI, self.batches_to_load, False, True)
 
-    def load_UI_objects(self, length_of_batches, batch_lengths, groupboxes, vboxes, batch_names, INTERVAL_LOAD, ITEMS_TO_ADD):
+    def load_UI_objects(self, length_of_batches, batch_lengths, groupboxes, vboxes, batch_names, INTERVAL_LOAD,
+                        ITEMS_TO_ADD):
         try:
             i = next(self._iter) if INTERVAL_LOAD else 0
         except StopIteration:
@@ -1076,12 +1141,13 @@ class mainwindowUI(QMainWindow):
             if INTERVAL_LOAD:
                 if sum(length_of_batches) != 0:
                     self.progressBar.setFormat(
-                        f' Loading... {int(self.item_added_count/sum(length_of_batches)*100)}%')
+                        f' Loading... {int(self.item_added_count / sum(length_of_batches) * 100)}%')
                 else:
                     self.progressBar.setFormat(
-                        f' Loading... {int(self.item_added_count/(sum(length_of_batches)+1)*100)}%')
+                        f' Loading... {int(self.item_added_count / (sum(length_of_batches) + 1) * 100)}%')
                 l = length_of_batches[self.current_batch_index]
-                if (self.txtSearch.text() != '' and self.txtSearch.text().lower() in file_names[i].lower() or self.txtSearch.text() == ''):
+                if (self.txtSearch.text() != '' and self.txtSearch.text().lower() in file_names[
+                    i].lower() or self.txtSearch.text() == ''):
                     self.item_added_count += 1
 
                     hbox = QHBoxLayout()
@@ -1091,7 +1157,8 @@ class mainwindowUI(QMainWindow):
                     self.label.setCursor(Qt.PointingHandCursor)
                     self.label.setContextMenuPolicy(Qt.CustomContextMenu)
                     self.label.customContextMenuRequested.connect(partial(
-                        self.menu_move_to, batch_name_list[i], file_names[i], batch_index_val[i], self.temp_index, hbox, line, self.label))
+                        self.menu_move_to, batch_name_list[i], file_names[i], batch_index_val[i], self.temp_index, hbox,
+                        line, self.label))
                     self.label.clicked.connect(partial(self.btnOpenPath, os.path.dirname(
                         os.path.abspath(__file__)) + image_locations[i]))
                     self.label.setObjectName('Name')
@@ -1105,7 +1172,8 @@ class mainwindowUI(QMainWindow):
                     self.textBoxDescription.setAlignment(QtCore.Qt.AlignCenter)
                     self.textBoxDescription.setText(str(description[i]))
                     self.textBoxDescription.editingFinished.connect(
-                        partial(self.saveLineEdit, self.textBoxDescription, batch_index_val[i], 'Str', batch_name_list[i]))
+                        partial(self.saveLineEdit, self.textBoxDescription, batch_index_val[i], 'Str',
+                                batch_name_list[i]))
                     self.textBoxDescription.setFocusPolicy(Qt.StrongFocus)
                     self.textBoxDescription.setPlaceholderText(
                         'Enter notes here...')
@@ -1131,7 +1199,8 @@ class mainwindowUI(QMainWindow):
                     self.comboBoxMaterial.setFixedSize(250, 60)
                     self.comboBoxMaterial.setContextMenuPolicy(Qt.CustomContextMenu)
                     self.comboBoxMaterial.customContextMenuRequested.connect(partial(
-                        self.menu_change_all, batch_name_list[i], self.comboBoxMaterial.currentText(), self.comboBoxMaterial))
+                        self.menu_change_all, batch_name_list[i], self.comboBoxMaterial.currentText(),
+                        self.comboBoxMaterial))
                     self.all_batch_comboboxes[batch_name].append(self.edit)
 
                     self.textBoxInput = QLineEdit("1")
@@ -1154,7 +1223,7 @@ class mainwindowUI(QMainWindow):
                         os.path.abspath(__file__)) + image_locations[i])
                     self.btnImage.setIcon(QIcon(os.path.dirname(
                         os.path.abspath(__file__)) + image_locations[i]))
-                    self.btnImage.setIconSize(QSize(150-6, 60-6))
+                    self.btnImage.setIconSize(QSize(150 - 6, 60 - 6))
 
                     self.btnImage.setFixedSize(250, 60)
                     self.btnImage.setFlat(True)
@@ -1275,6 +1344,7 @@ class mainwindowUI(QMainWindow):
         print_.triggered.connect(partial(self.openImage, path))
         popMenu.addAction(print_)
         popMenu.exec_(button.mapToGlobal(point))
+
     # CHECK BOX MENU
     def menu_check_or_uncheck_all(self, BATCH_NAME, checkbox, point):
         popMenu = QMenu(self)
@@ -1288,6 +1358,7 @@ class mainwindowUI(QMainWindow):
         popMenu.addAction(uncheck_all_action)
 
         popMenu.exec_(checkbox.mapToGlobal(point))
+
     @QtCore.pyqtSlot(QAction)
     def check_all(self, BATCH, TrueOrFalse):
         self.setCursor(Qt.BusyCursor)
@@ -1356,16 +1427,22 @@ class mainwindowUI(QMainWindow):
         popMenu.exec_(button.mapToGlobal(point))
 
     def changeMatIter(self, BATCH, material_name):
-        try: i = next(self._iter3)
-        except StopIteration: self._timer3.stop()
-        else: self.all_batch_comboboxes[BATCH][i].setText(material_name)
+        try:
+            i = next(self._iter3)
+        except StopIteration:
+            self._timer3.stop()
+        else:
+            self.all_batch_comboboxes[BATCH][i].setText(material_name)
+
     @QtCore.pyqtSlot(QAction)
-    def change_all_materials(self, BATCH_NAME, material_name, custom = False):
+    def change_all_materials(self, BATCH_NAME, material_name, custom=False):
         if custom:
             text, okPressed = QInputDialog.getText(
                 self, "Material Name", "Enter Custom Material name:", QLineEdit.Normal, "")
-            if okPressed and text != '': material_name = text
-            else: return
+            if okPressed and text != '':
+                material_name = text
+            else:
+                return
         self._iter3 = iter(range(len(self.all_batch_comboboxes[BATCH_NAME])))
         self._timer3 = QTimer(interval=10, timeout=partial(
             self.changeMatIter, BATCH_NAME, material_name))
@@ -1409,7 +1486,7 @@ class mainwindowUI(QMainWindow):
                 if batch_name != BATCH_FROM:
                     batch_action = QAction(batch_name, self)
                     batch_action.triggered.connect(partial(
-                        self.move_part, BATCH_FROM, batch_action, name, index, delete_index, layout, line,))
+                        self.move_part, BATCH_FROM, batch_action, name, index, delete_index, layout, line, ))
                     move.addAction(batch_action)
 
                     batch_action_move_all = QAction(batch_name, self)
@@ -1420,6 +1497,7 @@ class mainwindowUI(QMainWindow):
             popMenu.addMenu(move_all)
         popMenu.addAction(rename)
         popMenu.exec_(button.mapToGlobal(point))
+
     @QtCore.pyqtSlot(QAction)
     def move_part(self, BATCH_FROM, BATCH_TO, part_name, index, delete_index, layout, line):
         self.setCursor(Qt.BusyCursor)
@@ -1435,6 +1513,7 @@ class mainwindowUI(QMainWindow):
             QMessageBox.information(self, 'All files already exist.',
                                     f'That file already exists in "{BATCH_TO.text()}".', QMessageBox.Ok, QMessageBox.Ok)
             self.unsetCursor()
+
     @QtCore.pyqtSlot(QAction)
     def move_all_parts(self, BATCH_FROM, BATCH_TO):
         self.setCursor(Qt.BusyCursor)
@@ -1450,6 +1529,7 @@ class mainwindowUI(QMainWindow):
             QMessageBox.information(self, 'All files already exist.',
                                     f'That file already exists in "{BATCH_TO.text()}".', QMessageBox.Ok, QMessageBox.Ok)
             self.unsetCursor()
+
     @QtCore.pyqtSlot(QAction)
     def rename_part(self, BATCH, name, index):
         text, okPressed = QInputDialog.getText(
@@ -1466,8 +1546,10 @@ class mainwindowUI(QMainWindow):
         new_name = text
         for existing_file_names in file_names:
             if new_name == existing_file_names:
-                button = QMessageBox.information(self, 'That file already exist.', f'That file already exists.\nWould you like to try again?',
-                                                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)
+                button = QMessageBox.information(self, 'That file already exist.',
+                                                 f'That file already exists.\nWould you like to try again?',
+                                                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                                                 QMessageBox.Cancel)
                 if button == QMessageBox.Yes:
                     self.rename_part(BATCH, new_name, index)
                 return
@@ -1646,10 +1728,8 @@ class mainwindowUI(QMainWindow):
 
 
 class TextEdit(QTextEdit):
-    """
-    A TextEdit editor that sends editingFinished events
-    when the text was changed and focus is lost.
-    """
+    """A TextEdit editor that sends editingFinished events when the text was
+    changed and focus is lost."""
 
     editingFinished = QtCore.pyqtSignal()
     receivedFocus = QtCore.pyqtSignal()
@@ -1775,6 +1855,23 @@ class QImageViewer(QMainWindow):
         self.printAct.setEnabled(True)
         self.unsetCursor()
 
+    def generate_pdf(self):
+        pdf = FPDF()
+        onlyfiles = next(os.walk('Print/'))[2]
+        onlyfiles.sort(key=natsort_key)
+        w, h = 0, 0
+
+        for i, file in enumerate(onlyfiles):
+            if os.path.exists(os.path.dirname(os.path.abspath(__file__)) + '/Print/' + file):
+                if i == 1:
+                    cover = Image.open('Print/' + file)
+                    w, h = cover.size
+                    pdf = FPDF(unit="pt", format=[w, h])
+                image = 'Print/' + file
+                pdf.add_page()
+                pdf.image(image, 0, 0, w, h)
+        pdf.output("output.pdf", "F")
+
     def print_(self):
         dialog = QPrintDialog(self.printer, self)
         onlyfiles = next(os.walk('Print/'))[2]
@@ -1801,7 +1898,7 @@ class QImageViewer(QMainWindow):
                     __file__)) + '/Print/' + picture)
 
                 loop = QEventLoop()
-                QTimer.singleShot(1000, loop.quit)
+                QTimer.singleShot(2000, loop.quit)
                 loop.exec_()
 
             pixmap = QPixmap(self.path)
@@ -1920,7 +2017,6 @@ class QVLine(QFrame):
 
 
 def clickableLabel(widget):
-
     class Filter(QObject):
         clicked = pyqtSignal()
 
@@ -2038,15 +2134,17 @@ def load_batch(*args, BATCH):
         except Exception as e:
             print(e)
 
-def get_all_file_paths(directory): 
-    file_paths = [] 
-    for root, directories, files in os.walk(directory): 
-        for filename in files:  
-            filepath = os.path.join(root, filename) 
-            file_paths.append(filepath) 
-  
-    # returning all file paths 
-    return file_paths         
+
+def get_all_file_paths(directory):
+    file_paths = []
+    for root, directories, files in os.walk(directory):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            file_paths.append(filepath)
+
+    # returning all file paths
+    return file_paths
+
 
 if __name__ == '__main__':
     # if images directory doesn't exist we create it
