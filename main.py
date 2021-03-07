@@ -1655,7 +1655,7 @@ class mainwindowUI(QMainWindow):
     def saveLineEdit(self, textBox, index, isInt, BATCH):
         # return
         self.setCursor(Qt.BusyCursor)
-        if isInt == 'Int':
+        if isInt in ['Int', 'ComboEdit']:
             text = textBox.text()
         elif isInt == 'Str':
             text = textBox.toPlainText()
@@ -1663,8 +1663,6 @@ class mainwindowUI(QMainWindow):
             text = textBox.isChecked()
         elif isInt == 'Combo':
             text = textBox.currentText()
-        elif isInt == 'ComboEdit':
-            text = textBox.text()
         t = threading.Thread(target=self.saveLineEditThreading, args=(
             'isdone', text, index, isInt, BATCH))
         t.start()
@@ -2034,12 +2032,14 @@ def clickableLabel(widget):
         clicked = pyqtSignal()
 
         def eventFilter(self, obj, event):
-            if obj == widget:
-                if event.type() == QEvent.MouseButtonRelease:
-                    if obj.rect().contains(event.pos()):
-                        self.clicked.emit()
-                        # The developer can opt for .emit(obj) to get the object within the slot.
-                        return True
+            if (
+                obj == widget
+                and event.type() == QEvent.MouseButtonRelease
+                and obj.rect().contains(event.pos())
+            ):
+                self.clicked.emit()
+                # The developer can opt for .emit(obj) to get the object within the slot.
+                return True
             return False
 
     filter = Filter(widget)
