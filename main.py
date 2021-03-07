@@ -23,6 +23,7 @@ from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from ezdxf.addons.drawing import Frontend, RenderContext
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from PyQt5 import QtCore, QtGui, uic
+import argparse
 import webbrowser
 
 natsort_key = natsort_keygen()
@@ -135,7 +136,19 @@ class ConvertThread(QThread):
         sort_data(self.selected_batch_name)
         self.data_downloaded.emit('Finished!')
 
-    def convert_dxf2img(self, name, path, save_to, img_format, img_res, index):
+    def convert_dxf2img(self, name, path, save_to, img_format, img_res, index = 1):
+        if img_res <= 0:
+            raise ValueError('The file resolution must be a positive number')
+        if not os.path.exists(path):
+            raise ValueError('File does not exist')
+        # Checking the file extentions
+        input_extention = os.path.splitext(input_filename)[1].lower()
+        if (input_extention != '.dxf'):
+            raise ValueError('Incorrect input file format: the input file must be DXF')
+        output_extention = os.path.splitext(output_filename)[1].lower()
+        if (output_extention != '.png'):
+            raise ValueError('Incorrect output file format: the output file mush be PNG')
+        # Reading the DXF file
         doc = ezdxf.readfile(path)
         msp = doc.modelspace()
         auditor = doc.audit()
@@ -2134,6 +2147,15 @@ def load_batch(*args, BATCH):
         except Exception as e:
             print(e)
 
+def get_all_file_paths(directory): 
+    file_paths = [] 
+    for root, directories, files in os.walk(directory): 
+        for filename in files:  
+            filepath = os.path.join(root, filename) 
+            file_paths.append(filepath) 
+  
+    # returning all file paths 
+    return file_paths
 
 def get_all_file_paths(directory):
     file_paths = []
@@ -2161,19 +2183,47 @@ if __name__ == '__main__':
     # Load data file
     load_batches(BATCHES)
     SAVED_DATA_JSON_FILES = os.listdir('Batches/')
-    # start GUI
-    app = QApplication(sys.argv)
-    app.setStyle('Fusion')
-    app.setPalette(QApplication.style().standardPalette())
-    palette = QPalette()
-    palette.setColor(QPalette.ButtonText, QColor(30, 30, 30))
-    palette.setColor(QPalette.Text, QColor(30, 30, 30))
-    palette.setColor(QPalette.Window, QColor(255, 255, 255))
-    palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.Background, QColor(255, 255, 255))
-    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.Shadow, QColor(255, 255, 255))
-    palette.setColor(QPalette.Base, QColor(255, 255, 255))
-    app.setPalette(palette)
-    window = mainwindowUI()
-    sys.exit(app.exec_())
+    
+    parser = argparse.ArgumentParser(description = 'This application allows converting DXF to PNG')
+    parser.add_argument('--cli',
+            help = 'Runs the application in Command Line Interface (CLI). Example:\npython main.py --cli -i input.dxf -o output.png',
+            action = 'store_true')
+    parser.add_argument("-i", dest = "input_filename",
+                    help = "Input DXF file name", metavar = "FILE")
+    parser.add_argument("-o", dest = "output_filename",
+                    help = "Output PNG file name", metavar = "FILE")
+    args = parser.parse_args()
+    
+    if (args.cli):
+        input_filename = str(args.input_filename)
+        output_filename = str(args.output_filename)
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        files = [input_filename]
+        converter = ConvertThread(files, 'NON_BATCH')
+        print(f'Converting DXF file {dir_path}/{input_filename} to PNG ...')
+        converter.convert_dxf2img(name = input_filename,
+                                  path = dir_path + "/" + input_filename,
+                                  save_to = dir_path + "/" + output_filename,
+                                  img_format = ".png",
+                                  img_res = 300)
+        print('Conversion is successful')
+        print(f'File written to {dir_path}/{output_filename}')
+    else:
+        # start the GUI
+        app = QApplication(sys.argv)
+        app.setStyle('Fusion')
+        app.setPalette(QApplication.style().standardPalette())
+        palette = QPalette()
+        palette.setColor(QPalette.ButtonText, QColor(30, 30, 30))
+        palette.setColor(QPalette.Text, QColor(30, 30, 30))
+        palette.setColor(QPalette.Window, QColor(255, 255, 255))
+        palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
+        palette.setColor(QPalette.Background, QColor(255, 255, 255))
+        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+        palette.setColor(QPalette.Shadow, QColor(255, 255, 255))
+        palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        app.setPalette(palette)
+        window = mainwindowUI()
+        sys.exit(app.exec_())
+    
+    
